@@ -1,0 +1,37 @@
+{
+  "name": "poker-cash-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "extract:data": "powershell -ExecutionPolicy Bypass -File ./scripts/extract-poker-data.ps1 -WorkbookPath ./data/controle-poker.xlsx -OutputPath ./data/mockData.json",
+    "db:push": "npx supabase db push",
+    "db:link": "npx supabase link"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "pg": "^8.20.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "recharts": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/pg": "^8.20.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}

@@ -1,0 +1,933 @@
+{
+    "generatedAt":  "2026-04-24T02:59:29",
+    "sourceFile":  "data/controle-poker.xlsx",
+    "sessions":  [
+                     {
+                         "id":  "sessao-2026-03-03",
+                         "date":  "2026-03-03",
+                         "players":  [
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  600,
+                                             "cashOut":  750,
+                                             "net":  150,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  900,
+                                             "cashOut":  1425,
+                                             "net":  525,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Caio Lupo",
+                                             "buyIn":  100,
+                                             "cashOut":  1100,
+                                             "net":  1000,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Matheus Lacerda",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  2150,
+                                             "cashOut":  0,
+                                             "net":  -2150,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vitor Math",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  300,
+                                             "cashOut":  1260,
+                                             "net":  960,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Pedrinho",
+                                             "buyIn":  350,
+                                             "cashOut":  0,
+                                             "net":  -350,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Die",
+                                             "buyIn":  0,
+                                             "cashOut":  0,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  700,
+                                             "cashOut":  0,
+                                             "net":  -700,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  700,
+                                             "cashOut":  525,
+                                             "net":  -175,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Marquinhos",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  450,
+                                             "cashOut":  0,
+                                             "net":  -450,
+                                             "paymentStatus":  "a pagar"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  6850,
+                                        "cashOut":  5060,
+                                        "net":  -1790,
+                                        "playersCount":  13
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-03-10",
+                         "date":  "2026-03-10",
+                         "players":  [
+                                         {
+                                             "name":  "Balde",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  600,
+                                             "cashOut":  0,
+                                             "net":  -600,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Lupo",
+                                             "buyIn":  800,
+                                             "cashOut":  725,
+                                             "net":  -75,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  700,
+                                             "cashOut":  270,
+                                             "net":  -430,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  300,
+                                             "cashOut":  550,
+                                             "net":  250,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  2200,
+                                             "cashOut":  0,
+                                             "net":  -2200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Felipe Jogador",
+                                             "buyIn":  700,
+                                             "cashOut":  0,
+                                             "net":  -700,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  300,
+                                             "cashOut":  880,
+                                             "net":  580,
+                                             "paymentStatus":  "a receber"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  6200,
+                                        "cashOut":  2425,
+                                        "net":  -3775,
+                                        "playersCount":  10
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-03-17",
+                         "date":  "2026-03-17",
+                         "players":  [
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  2000,
+                                             "cashOut":  0,
+                                             "net":  -2000,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  400,
+                                             "cashOut":  1400,
+                                             "net":  1000,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  300,
+                                             "cashOut":  0,
+                                             "net":  -300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  800,
+                                             "cashOut":  0,
+                                             "net":  -800,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  700,
+                                             "cashOut":  0,
+                                             "net":  -700,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Luque",
+                                             "buyIn":  400,
+                                             "cashOut":  1900,
+                                             "net":  1500,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Pedrinho",
+                                             "buyIn":  250,
+                                             "cashOut":  0,
+                                             "net":  -250,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Ph",
+                                             "buyIn":  400,
+                                             "cashOut":  0,
+                                             "net":  -400,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  900,
+                                             "cashOut":  0,
+                                             "net":  -900,
+                                             "paymentStatus":  "a pagar"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  6150,
+                                        "cashOut":  3300,
+                                        "net":  -2850,
+                                        "playersCount":  9
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-03-24",
+                         "date":  "2026-03-24",
+                         "players":  [
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  600,
+                                             "cashOut":  1100,
+                                             "net":  500,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Balde",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Jonis",
+                                             "buyIn":  100,
+                                             "cashOut":  240,
+                                             "net":  140,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  1200,
+                                             "cashOut":  0,
+                                             "net":  -1200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  900,
+                                             "cashOut":  2150,
+                                             "net":  1250,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  100,
+                                             "cashOut":  300,
+                                             "net":  200,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Gustavo",
+                                             "buyIn":  300,
+                                             "cashOut":  0,
+                                             "net":  -300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Jhonathan",
+                                             "buyIn":  300,
+                                             "cashOut":  0,
+                                             "net":  -300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Lupo",
+                                             "buyIn":  100,
+                                             "cashOut":  170,
+                                             "net":  70,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Marcell",
+                                             "buyIn":  1500,
+                                             "cashOut":  925,
+                                             "net":  -575,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  700,
+                                             "cashOut":  1000,
+                                             "net":  300,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  800,
+                                             "cashOut":  1100,
+                                             "net":  300,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Vinicius",
+                                             "buyIn":  3850,
+                                             "cashOut":  0,
+                                             "net":  -3850,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vitor",
+                                             "buyIn":  700,
+                                             "cashOut":  1070,
+                                             "net":  370,
+                                             "paymentStatus":  "a receber"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  11350,
+                                        "cashOut":  8055,
+                                        "net":  -3295,
+                                        "playersCount":  14
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-03-31",
+                         "date":  "2026-03-31",
+                         "players":  [
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  1200,
+                                             "cashOut":  0,
+                                             "net":  -1200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  1000,
+                                             "cashOut":  600,
+                                             "net":  -400,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Jonis",
+                                             "buyIn":  100,
+                                             "cashOut":  145,
+                                             "net":  45,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  1500,
+                                             "cashOut":  1300,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  600,
+                                             "cashOut":  0,
+                                             "net":  -600,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  300,
+                                             "cashOut":  975,
+                                             "net":  675,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Miguel",
+                                             "buyIn":  250,
+                                             "cashOut":  730,
+                                             "net":  480,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Caio Lupo",
+                                             "buyIn":  300,
+                                             "cashOut":  105,
+                                             "net":  -195,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Danone",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  1100,
+                                             "cashOut":  1400,
+                                             "net":  300,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  1000,
+                                             "cashOut":  0,
+                                             "net":  -1000,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Felipe Jogador",
+                                             "buyIn":  1400,
+                                             "cashOut":  200,
+                                             "net":  -1200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Rafael",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  9750,
+                                        "cashOut":  5455,
+                                        "net":  -4295,
+                                        "playersCount":  13
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-04-08",
+                         "date":  "2026-04-08",
+                         "players":  [
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  600,
+                                             "cashOut":  0,
+                                             "net":  -600,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  1600,
+                                             "cashOut":  0,
+                                             "net":  -1600,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Jonis",
+                                             "buyIn":  0,
+                                             "cashOut":  0,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  900,
+                                             "cashOut":  1130,
+                                             "net":  230,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  700,
+                                             "cashOut":  0,
+                                             "net":  -700,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  300,
+                                             "cashOut":  400,
+                                             "net":  100,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Miguel",
+                                             "buyIn":  0,
+                                             "cashOut":  0,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Caio Lupo",
+                                             "buyIn":  300,
+                                             "cashOut":  300,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Danone",
+                                             "buyIn":  100,
+                                             "cashOut":  1900,
+                                             "net":  1800,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  900,
+                                             "cashOut":  0,
+                                             "net":  -900,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Felipe Jogador",
+                                             "buyIn":  0,
+                                             "cashOut":  0,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Rafael",
+                                             "buyIn":  0,
+                                             "cashOut":  0,
+                                             "net":  0,
+                                             "paymentStatus":  "quitado"
+                                         },
+                                         {
+                                             "name":  "Pepeu",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Balde",
+                                             "buyIn":  200,
+                                             "cashOut":  0,
+                                             "net":  -200,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Pitoco",
+                                             "buyIn":  400,
+                                             "cashOut":  0,
+                                             "net":  -400,
+                                             "paymentStatus":  "a pagar"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  7000,
+                                        "cashOut":  3730,
+                                        "net":  -3270,
+                                        "playersCount":  16
+                                    }
+                     },
+                     {
+                         "id":  "sessao-2026-04-14",
+                         "date":  "2026-04-14",
+                         "players":  [
+                                         {
+                                             "name":  "Pivas",
+                                             "buyIn":  400,
+                                             "cashOut":  0,
+                                             "net":  -400,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Caio Vale",
+                                             "buyIn":  400,
+                                             "cashOut":  1050,
+                                             "net":  650,
+                                             "paymentStatus":  "a receber"
+                                         },
+                                         {
+                                             "name":  "Tota",
+                                             "buyIn":  1700,
+                                             "cashOut":  170,
+                                             "net":  -1530,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Menor",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Vicente",
+                                             "buyIn":  1000,
+                                             "cashOut":  0,
+                                             "net":  -1000,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Miguel",
+                                             "buyIn":  600,
+                                             "cashOut":  0,
+                                             "net":  -600,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Danone",
+                                             "buyIn":  1000,
+                                             "cashOut":  0,
+                                             "net":  -1000,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua Jogador",
+                                             "buyIn":  300,
+                                             "cashOut":  0,
+                                             "net":  -300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Kaua",
+                                             "buyIn":  2000,
+                                             "cashOut":  1700,
+                                             "net":  -300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Felipe Jogador",
+                                             "buyIn":  1300,
+                                             "cashOut":  0,
+                                             "net":  -1300,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Pitoco",
+                                             "buyIn":  500,
+                                             "cashOut":  0,
+                                             "net":  -500,
+                                             "paymentStatus":  "a pagar"
+                                         },
+                                         {
+                                             "name":  "Greg",
+                                             "buyIn":  300,
+                                             "cashOut":  1035,
+                                             "net":  735,
+                                             "paymentStatus":  "a receber"
+                                         }
+                                     ],
+                         "totals":  {
+                                        "buyIn":  10000,
+                                        "cashOut":  3955,
+                                        "net":  -6045,
+                                        "playersCount":  12
+                                    }
+                     }
+                 ],
+    "playersSummary":  [
+                           {
+                               "name":  "Luque",
+                               "buyIn":  400,
+                               "cashOut":  1900,
+                               "net":  1500,
+                               "sessions":  1,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Caio Lupo",
+                               "buyIn":  1600,
+                               "cashOut":  2400,
+                               "net":  800,
+                               "sessions":  5,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Greg",
+                               "buyIn":  300,
+                               "cashOut":  1035,
+                               "net":  735,
+                               "sessions":  1,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Vicente",
+                               "buyIn":  2700,
+                               "cashOut":  3205,
+                               "net":  505,
+                               "sessions":  6,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Vitor",
+                               "buyIn":  700,
+                               "cashOut":  1070,
+                               "net":  370,
+                               "sessions":  1,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Danone",
+                               "buyIn":  1600,
+                               "cashOut":  1900,
+                               "net":  300,
+                               "sessions":  3,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Jonis",
+                               "buyIn":  200,
+                               "cashOut":  385,
+                               "net":  185,
+                               "sessions":  3,
+                               "paymentStatus":  "a receber"
+                           },
+                           {
+                               "name":  "Die",
+                               "buyIn":  0,
+                               "cashOut":  0,
+                               "net":  0,
+                               "sessions":  1,
+                               "paymentStatus":  "quitado"
+                           },
+                           {
+                               "name":  "Miguel",
+                               "buyIn":  850,
+                               "cashOut":  730,
+                               "net":  -120,
+                               "sessions":  3,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Vitor Math",
+                               "buyIn":  200,
+                               "cashOut":  0,
+                               "net":  -200,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Matheus Lacerda",
+                               "buyIn":  200,
+                               "cashOut":  0,
+                               "net":  -200,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Marquinhos",
+                               "buyIn":  200,
+                               "cashOut":  0,
+                               "net":  -200,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Gustavo",
+                               "buyIn":  300,
+                               "cashOut":  0,
+                               "net":  -300,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Jhonathan",
+                               "buyIn":  300,
+                               "cashOut":  0,
+                               "net":  -300,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Ph",
+                               "buyIn":  400,
+                               "cashOut":  0,
+                               "net":  -400,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Rafael",
+                               "buyIn":  500,
+                               "cashOut":  0,
+                               "net":  -500,
+                               "sessions":  2,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Pepeu",
+                               "buyIn":  500,
+                               "cashOut":  0,
+                               "net":  -500,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Marcell",
+                               "buyIn":  1500,
+                               "cashOut":  925,
+                               "net":  -575,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Menor",
+                               "buyIn":  4700,
+                               "cashOut":  4125,
+                               "net":  -575,
+                               "sessions":  7,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Balde",
+                               "buyIn":  600,
+                               "cashOut":  0,
+                               "net":  -600,
+                               "sessions":  3,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Pedrinho",
+                               "buyIn":  600,
+                               "cashOut":  0,
+                               "net":  -600,
+                               "sessions":  2,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Pitoco",
+                               "buyIn":  900,
+                               "cashOut":  0,
+                               "net":  -900,
+                               "sessions":  2,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Pivas",
+                               "buyIn":  4400,
+                               "cashOut":  3250,
+                               "net":  -1150,
+                               "sessions":  7,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Kaua Jogador",
+                               "buyIn":  4200,
+                               "cashOut":  2400,
+                               "net":  -1800,
+                               "sessions":  7,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Kaua",
+                               "buyIn":  6100,
+                               "cashOut":  3325,
+                               "net":  -2775,
+                               "sessions":  7,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Felipe Jogador",
+                               "buyIn":  3400,
+                               "cashOut":  200,
+                               "net":  -3200,
+                               "sessions":  4,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Caio Vale",
+                               "buyIn":  5750,
+                               "cashOut":  2530,
+                               "net":  -3220,
+                               "sessions":  6,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Vinicius",
+                               "buyIn":  3850,
+                               "cashOut":  0,
+                               "net":  -3850,
+                               "sessions":  1,
+                               "paymentStatus":  "a pagar"
+                           },
+                           {
+                               "name":  "Tota",
+                               "buyIn":  10350,
+                               "cashOut":  2600,
+                               "net":  -7750,
+                               "sessions":  7,
+                               "paymentStatus":  "a pagar"
+                           }
+                       ]
+}
