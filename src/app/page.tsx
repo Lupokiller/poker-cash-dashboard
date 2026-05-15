@@ -6,14 +6,24 @@ import { KpiCard } from '@/components/KpiCard';
 import { PlayersTable } from '@/components/PlayersTable';
 import { RankingChart, BankrollLine, DistributionPie } from '@/components/Charts';
 import { PlayerRegistrationTab } from '@/components/PlayerRegistrationTab';
+import { LogoutButton } from '@/components/LogoutButton';
+import { UsersManagementTab } from '@/components/UsersManagementTab';
 import { currency, prettyDate } from '@/lib/data';
 import { Session } from '@/lib/types';
 import { computeDashboardMetrics, DashboardScope, filterSessionsByScope } from '@/lib/dashboardModel';
 
 type PeriodMode = 'session' | 'month' | 'total';
+type AppTab = 'dashboard' | 'cadastro' | 'usuarios';
+
+interface CurrentUser {
+  id: string;
+  name: string;
+  role: 'admin' | 'user';
+}
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cadastro'>('dashboard');
+  const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [dbHealth, setDbHealth] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionsError, setSessionsError] = useState('');
@@ -43,6 +53,21 @@ export default function Home() {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = (await response.json()) as CurrentUser;
+          setCurrentUser(data);
+        }
+      } catch {
+        /* middleware redireciona se nao autenticado */
+      }
+    };
+    void loadMe();
+  }, []);
 
   useEffect(() => {
     const checkDb = async () => {
@@ -101,6 +126,7 @@ export default function Home() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <div className='flex flex-wrap items-center justify-between gap-2'>
           <h1 className='text-3xl font-semibold'>Dashboard Home Game Poker</h1>
+          <div className='flex flex-wrap items-center gap-2'>
           <span
             className={`rounded-full px-3 py-1 text-xs ${
               dbHealth === 'connected'
@@ -112,8 +138,12 @@ export default function Home() {
           >
             {dbHealth === 'connected' ? 'Banco conectado' : dbHealth === 'disconnected' ? 'Banco desconectado' : 'Verificando banco...'}
           </span>
+          <LogoutButton />
+          </div>
         </div>
-        <p className='text-slate-400'>Visao financeira premium para gestão de cash game.</p>
+        <p className='text-slate-400'>
+          {currentUser ? `Ola, ${currentUser.name}` : 'Visao financeira premium para gestao de cash game.'}
+        </p>
       </motion.div>
 
       <section className='glass-card p-3'>
@@ -136,6 +166,17 @@ export default function Home() {
           >
             Cadastro de Jogadores
           </button>
+          {currentUser?.role === 'admin' && (
+            <button
+              type='button'
+              onClick={() => setActiveTab('usuarios')}
+              className={`rounded-lg px-3 py-2 text-sm transition ${
+                activeTab === 'usuarios' ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Usuarios
+            </button>
+          )}
         </div>
       </section>
 
@@ -317,8 +358,10 @@ export default function Home() {
             )}
           </section>
         </>
-      ) : (
+      ) : activeTab === 'cadastro' ? (
         <PlayerRegistrationTab onSessionsChanged={() => void loadSessions()} />
+      ) : (
+        <UsersManagementTab />
       )}
     </main>
   );

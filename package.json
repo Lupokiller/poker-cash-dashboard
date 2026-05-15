@@ -14,6 +14,7 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "framer-motion": "latest",
+    "jose": "^6.2.3",
     "lucide-react": "latest",
     "next": "latest",
     "pg": "^8.20.0",
