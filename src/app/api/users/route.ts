@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
 import { requireAdmin } from '@/lib/requireAuth';
-import { createAppUser, listAppUsers } from '@/lib/usersStore';
+import { AppUserRole, createAppUser, listAppUsers } from '@/lib/usersStore';
 
 export const runtime = 'nodejs';
 
@@ -29,9 +29,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: { name?: string; login?: string; password?: string };
+  let body: { name?: string; login?: string; password?: string; role?: AppUserRole };
   try {
-    body = (await request.json()) as { name?: string; login?: string; password?: string };
+    body = (await request.json()) as { name?: string; login?: string; password?: string; role?: AppUserRole };
   } catch {
     return NextResponse.json({ message: 'JSON invalido.' }, { status: 400 });
   }
@@ -39,11 +39,13 @@ export async function POST(request: Request) {
   try {
     await requireAdmin();
 
+    const requestedRole = body.role === 'admin' ? 'admin' : 'user';
+
     const created = await createAppUser({
       name: body.name?.trim() ?? '',
       login: body.login?.trim() ?? '',
       password: body.password ?? '',
-      role: 'user',
+      role: requestedRole,
     });
 
     return NextResponse.json(created, { status: 201 });

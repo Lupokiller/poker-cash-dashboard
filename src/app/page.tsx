@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { CashAuditBanner } from '@/components/CashAuditBanner';
 import { KpiCard } from '@/components/KpiCard';
 import { PlayersTable } from '@/components/PlayersTable';
 import { RankingChart, BankrollLine, DistributionPie } from '@/components/Charts';
 import { PlayerRegistrationTab } from '@/components/PlayerRegistrationTab';
 import { LogoutButton } from '@/components/LogoutButton';
+import { RakeBillingTab } from '@/components/RakeBillingTab';
 import { UsersManagementTab } from '@/components/UsersManagementTab';
 import { currency, prettyDate } from '@/lib/data';
-import { Session } from '@/lib/types';
+import { RegisteredPlayer, Session } from '@/lib/types';
 import { computeDashboardMetrics, DashboardScope, filterSessionsByScope } from '@/lib/dashboardModel';
+import { computeScopedCashAudit } from '@/lib/rakeModel';
 
 type PeriodMode = 'session' | 'month' | 'total';
-type AppTab = 'dashboard' | 'cadastro' | 'usuarios';
+type AppTab = 'dashboard' | 'cadastro' | 'faturamento' | 'usuarios';
 
 interface CurrentUser {
   id: string;
@@ -31,6 +34,7 @@ export default function Home() {
   const [periodMode, setPeriodMode] = useState<PeriodMode>('total');
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [monthKey, setMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [contactByPlayerName, setContactByPlayerName] = useState<Record<string, string>>({});
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -53,6 +57,47 @@ export default function Home() {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/registered-players');
+        if (!response.ok) {
+          return;
+        }
+        const rows = (await response.json()) as unknown;
+        if (cancelled || !Array.isArray(rows)) {
+          return;
+        }
+        const players = rows as RegisteredPlayer[];
+        const sorted = [...players].sort((a, b) => {
+          const byDate = String(b.date).localeCompare(String(a.date));
+          if (byDate !== 0) {
+            return byDate;
+          }
+          return String(b.id).localeCompare(String(a.id));
+        });
+        const map: Record<string, string> = {};
+        for (const r of sorted) {
+          const key = r.name.trim().toLowerCase();
+          const digits = r.phone?.replace(/\D/g, '') ?? '';
+          if (digits.length >= 10) {
+            map[key] = r.phone.trim();
+          }
+        }
+        setContactByPlayerName(map);
+      } catch {
+        /* contatos opcionais */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, sessions]);
 
   useEffect(() => {
     const loadMe = async () => {
@@ -106,6 +151,14 @@ export default function Home() {
 
   const metrics = useMemo(() => computeDashboardMetrics(scopedSessions), [scopedSessions]);
 
+  const cashAudit = useMemo(() => computeScopedCashAudit(scopedSessions), [scopedSessions]);
+
+  const rakePeriodLabel = useMemo(() => {
+    if (periodMode === 'session') return 'nesta sessão';
+    if (periodMode === 'month') return 'neste mês';
+    return 'no período';
+  }, [periodMode]);
+
   const detailSession = useMemo(() => {
     if (periodMode !== 'session') {
       return undefined;
@@ -122,18 +175,24 @@ export default function Home() {
   }, [monthKey]);
 
   return (
-    <main className='mx-auto max-w-7xl space-y-6 p-4 md:p-8'>
+    <main className='min-h-screen bg-zinc-950 text-zinc-50'>
+      <div className='mx-auto max-w-7xl space-y-6 p-4 md:p-8'>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <h1 className='text-3xl font-semibold'>Dashboard Home Game Poker</h1>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <div>
+            <h1 className='text-2xl font-semibold tracking-tight text-white md:text-3xl'>Dashboard Home Game Poker</h1>
+            <p className='mt-1 max-w-2xl text-sm text-zinc-400'>
+              {currentUser ? `Olá, ${currentUser.name}` : 'Visão financeira para gestão premium de cash game.'}
+            </p>
+          </div>
           <div className='flex flex-wrap items-center gap-2'>
           <span
-            className={`rounded-full px-3 py-1 text-xs ${
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
               dbHealth === 'connected'
-                ? 'bg-emerald-500/20 text-emerald-300'
+                ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
                 : dbHealth === 'disconnected'
-                  ? 'bg-rose-500/20 text-rose-300'
-                  : 'bg-slate-500/20 text-slate-300'
+                  ? 'border-rose-500/35 bg-rose-500/10 text-rose-300'
+                  : 'border-zinc-700 bg-zinc-900/50 text-zinc-400'
             }`}
           >
             {dbHealth === 'connected' ? 'Banco conectado' : dbHealth === 'disconnected' ? 'Banco desconectado' : 'Verificando banco...'}
@@ -141,18 +200,17 @@ export default function Home() {
           <LogoutButton />
           </div>
         </div>
-        <p className='text-slate-400'>
-          {currentUser ? `Ola, ${currentUser.name}` : 'Visao financeira premium para gestao de cash game.'}
-        </p>
       </motion.div>
 
-      <section className='glass-card p-3'>
+      <section className='glass-card p-2 md:p-3'>
         <div className='flex flex-wrap gap-2'>
           <button
             type='button'
             onClick={() => setActiveTab('dashboard')}
-            className={`rounded-lg px-3 py-2 text-sm transition ${
-              activeTab === 'dashboard' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'dashboard'
+                ? 'border-sky-500/45 bg-sky-500/15 text-sky-100 shadow-lg shadow-sky-500/5'
+                : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
             }`}
           >
             Dashboard
@@ -160,21 +218,36 @@ export default function Home() {
           <button
             type='button'
             onClick={() => setActiveTab('cadastro')}
-            className={`rounded-lg px-3 py-2 text-sm transition ${
-              activeTab === 'cadastro' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'cadastro'
+                ? 'border-sky-500/45 bg-sky-500/15 text-sky-100 shadow-lg shadow-sky-500/5'
+                : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
             }`}
           >
             Cadastro de Jogadores
+          </button>
+          <button
+            type='button'
+            onClick={() => setActiveTab('faturamento')}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'faturamento'
+                ? 'border-sky-500/45 bg-sky-500/15 text-sky-100 shadow-lg shadow-sky-500/5'
+                : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+            }`}
+          >
+            Faturamento / Rake
           </button>
           {currentUser?.role === 'admin' && (
             <button
               type='button'
               onClick={() => setActiveTab('usuarios')}
-              className={`rounded-lg px-3 py-2 text-sm transition ${
-                activeTab === 'usuarios' ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                activeTab === 'usuarios'
+                  ? 'border-violet-500/45 bg-violet-500/15 text-violet-100 shadow-lg shadow-violet-500/5'
+                  : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
               }`}
             >
-              Usuarios
+              Usuários
             </button>
           )}
         </div>
@@ -185,49 +258,61 @@ export default function Home() {
           <section className='glass-card space-y-3 p-4'>
             <div className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
               <div>
-                <h2 className='text-lg font-semibold'>Metricas</h2>
-                <p className='text-xs text-slate-500'>Dados das sessoes finalizadas na aba de cadastro.</p>
+                <h2 className='text-lg font-semibold text-zinc-100'>Métricas</h2>
+                <p className='text-xs text-zinc-500'>Dados das sessões finalizadas na aba de cadastro.</p>
               </div>
               <div className='flex flex-wrap items-center gap-2'>
                 <button
                   type='button'
                   onClick={() => void loadSessions()}
-                  className='rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-200 transition hover:bg-slate-700'
+                  className='rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-800/70'
                 >
                   Atualizar
                 </button>
-                {sessionsLoading && <span className='text-xs text-slate-500'>Carregando...</span>}
+                {sessionsLoading && <span className='text-xs text-zinc-500'>Carregando...</span>}
               </div>
             </div>
+
+            <CashAuditBanner
+              audit={cashAudit}
+              hasSessions={scopedSessions.length > 0}
+              rakePeriodLabel={rakePeriodLabel}
+            />
 
             {sessionsError && <p className='text-sm text-rose-300'>{sessionsError}</p>}
 
             <div className='flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'>
               <div className='flex flex-wrap gap-2'>
-                <span className='self-center text-xs uppercase tracking-wide text-slate-500'>Periodo</span>
+                <span className='self-center text-xs font-medium uppercase tracking-wide text-zinc-500'>Período</span>
                 <button
                   type='button'
                   onClick={() => setPeriodMode('session')}
-                  className={`rounded-lg px-3 py-2 text-sm transition ${
-                    periodMode === 'session' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    periodMode === 'session'
+                      ? 'border-sky-500/45 bg-sky-500/15 text-sky-100'
+                      : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  Por sessao
+                  Por sessão
                 </button>
                 <button
                   type='button'
                   onClick={() => setPeriodMode('month')}
-                  className={`rounded-lg px-3 py-2 text-sm transition ${
-                    periodMode === 'month' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    periodMode === 'month'
+                      ? 'border-sky-500/45 bg-sky-500/15 text-sky-100'
+                      : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  Por mes
+                  Por mês
                 </button>
                 <button
                   type='button'
                   onClick={() => setPeriodMode('total')}
-                  className={`rounded-lg px-3 py-2 text-sm transition ${
-                    periodMode === 'total' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    periodMode === 'total'
+                      ? 'border-sky-500/45 bg-sky-500/15 text-sky-100'
+                      : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
                   Total
@@ -235,13 +320,13 @@ export default function Home() {
               </div>
 
               {periodMode === 'session' && (
-                <label className='flex flex-col gap-1 text-xs text-slate-400'>
-                  Sessao
+                <label className='flex flex-col gap-1 text-xs text-zinc-500'>
+                  Sessão
                   <select
                     value={selectedSessionId}
                     onChange={(e) => setSelectedSessionId(e.target.value)}
                     disabled={sessions.length === 0}
-                    className='min-w-[12rem] rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-400 disabled:opacity-50'
+                    className='min-w-[12rem] rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/25 disabled:opacity-50'
                   >
                     {sessions.length === 0 ? (
                       <option value=''>Nenhuma sessao salva</option>
@@ -257,19 +342,19 @@ export default function Home() {
               )}
 
               {periodMode === 'month' && (
-                <label className='flex flex-col gap-1 text-xs text-slate-400'>
-                  Mes
+                <label className='flex flex-col gap-1 text-xs text-zinc-500'>
+                  Mês
                   <input
                     type='month'
                     value={monthKey}
                     onChange={(e) => setMonthKey(e.target.value)}
-                    className='rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:border-sky-400'
+                    className='rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
                   />
                 </label>
               )}
             </div>
 
-            <p className='text-xs text-slate-500'>
+            <p className='text-xs text-zinc-500'>
               {periodMode === 'session' && (detailSession ? `Visualizando ${prettyDate(detailSession.date)}.` : 'Selecione uma sessao finalizada.')}
               {periodMode === 'month' && `Visualizando ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)} (${scopedSessions.length} sessoes).`}
               {periodMode === 'total' && `Visualizando todas as sessoes (${scopedSessions.length} no total).`}
@@ -278,7 +363,7 @@ export default function Home() {
 
           {!sessionsLoading && sessions.length === 0 && !sessionsError && (
             <p className='rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'>
-              Ainda nao ha sessoes finalizadas. Use &quot;Finalizar sessao do dia&quot; na aba Cadastro para gravar o dia e liberar os graficos.
+              Ainda não há sessões finalizadas. Use &quot;Finalizar sessão do dia&quot; na aba Cadastro para gravar o dia e liberar os gráficos.
             </p>
           )}
 
@@ -287,19 +372,35 @@ export default function Home() {
             <KpiCard title='Total de buy-ins' value={currency(metrics.totalBuyIns)} tone='blue' />
             <KpiCard title='Total de cash-outs' value={currency(metrics.totalCashOuts)} tone='green' />
             <KpiCard title='Saldo pendente' value={currency(metrics.pending)} tone='amber' />
-            <KpiCard
-              title='Maior ganhador'
-              value={`${metrics.topWinner?.name ?? '-'} - ${currency(metrics.topWinner?.net ?? 0)}`}
-              tone='green'
-            />
-            <KpiCard
-              title='Maior perdedor'
-              value={`${metrics.topLoser?.name ?? '-'} - ${currency(metrics.topLoser?.net ?? 0)}`}
-              tone='red'
-            />
+            {metrics.topWinner && metrics.playersSummary.length > 0 ? (
+              <KpiCard
+                title='Maior ganhador'
+                tone='green'
+                playerHighlight={{
+                  name: metrics.topWinner.name,
+                  amount: currency(metrics.topWinner.net),
+                  kind: 'winner',
+                }}
+              />
+            ) : (
+              <KpiCard title='Maior ganhador' value='—' tone='green' />
+            )}
+            {metrics.topLoser && metrics.playersSummary.length > 0 ? (
+              <KpiCard
+                title='Maior perdedor'
+                tone='red'
+                playerHighlight={{
+                  name: metrics.topLoser.name,
+                  amount: currency(metrics.topLoser.net),
+                  kind: 'loser',
+                }}
+              />
+            ) : (
+              <KpiCard title='Maior perdedor' value='—' tone='red' />
+            )}
           </section>
 
-          <PlayersTable players={metrics.playersSummary} />
+          <PlayersTable players={metrics.playersSummary} contactByPlayerName={contactByPlayerName} />
 
           {metrics.playersSummary.length > 0 ? (
             <>
@@ -313,44 +414,44 @@ export default function Home() {
               <BankrollLine data={metrics.bankrollData} />
             </>
           ) : (
-            !sessionsLoading && <p className='text-center text-sm text-slate-500'>Sem dados neste periodo para exibir graficos.</p>
+            !sessionsLoading && <p className='text-center text-sm text-zinc-500'>Sem dados neste período para exibir gráficos.</p>
           )}
 
           <section className='glass-card p-4'>
             {detailSession ? (
               <div className='grid gap-3 text-sm md:grid-cols-3'>
                 <div>
-                  <p className='text-slate-400'>Data da sessao</p>
-                  <p className='font-semibold'>{prettyDate(detailSession.date)}</p>
+                  <p className='text-zinc-500'>Data da sessão</p>
+                  <p className='font-semibold text-zinc-100'>{prettyDate(detailSession.date)}</p>
                 </div>
                 <div>
-                  <p className='text-slate-400'>Jogadores</p>
-                  <p className='font-semibold'>{detailSession.totals.playersCount}</p>
+                  <p className='text-zinc-500'>Jogadores</p>
+                  <p className='font-semibold text-zinc-100'>{detailSession.totals.playersCount}</p>
                 </div>
                 <div>
-                  <p className='text-slate-400'>Resumo financeiro</p>
-                  <p className='font-semibold'>{currency(detailSession.totals.net)}</p>
+                  <p className='text-zinc-500'>Resumo financeiro</p>
+                  <p className='font-semibold text-zinc-100'>{currency(detailSession.totals.net)}</p>
                 </div>
                 <div className='md:col-span-3'>
-                  <p className='text-slate-400'>Buy-ins / Cash-outs</p>
-                  <p className='font-semibold'>
+                  <p className='text-zinc-500'>Buy-ins / Cash-outs</p>
+                  <p className='font-semibold text-zinc-100'>
                     {currency(detailSession.totals.buyIn)} / {currency(detailSession.totals.cashOut)}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className='grid gap-2 text-sm text-slate-300 md:grid-cols-3'>
+              <div className='grid gap-2 text-sm text-zinc-300 md:grid-cols-3'>
                 <div>
-                  <p className='text-slate-400'>Sessoes no filtro</p>
-                  <p className='font-semibold'>{scopedSessions.length}</p>
+                  <p className='text-zinc-500'>Sessões no filtro</p>
+                  <p className='font-semibold text-zinc-100'>{scopedSessions.length}</p>
                 </div>
                 <div>
-                  <p className='text-slate-400'>Resultado agregado</p>
-                  <p className='font-semibold'>{currency(scopedSessions.reduce((a, s) => a + s.totals.net, 0))}</p>
+                  <p className='text-zinc-500'>Resultado agregado</p>
+                  <p className='font-semibold text-zinc-100'>{currency(scopedSessions.reduce((a, s) => a + s.totals.net, 0))}</p>
                 </div>
                 <div>
-                  <p className='text-slate-400'>Buy-ins / Cash-outs</p>
-                  <p className='font-semibold'>
+                  <p className='text-zinc-500'>Buy-ins / Cash-outs</p>
+                  <p className='font-semibold text-zinc-100'>
                     {currency(metrics.totalBuyIns)} / {currency(metrics.totalCashOuts)}
                   </p>
                 </div>
@@ -360,9 +461,17 @@ export default function Home() {
         </>
       ) : activeTab === 'cadastro' ? (
         <PlayerRegistrationTab onSessionsChanged={() => void loadSessions()} />
+      ) : activeTab === 'faturamento' ? (
+        <RakeBillingTab
+          sessions={sessions}
+          loading={sessionsLoading}
+          error={sessionsError}
+          onRefresh={() => void loadSessions()}
+        />
       ) : (
         <UsersManagementTab />
       )}
+      </div>
     </main>
   );
 }
