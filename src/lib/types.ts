@@ -11,6 +11,8 @@ export interface SessionPlayer {
 export interface Session {
   id: string;
   date: string;
+  /** Valor pago ao staff na noite (persistido em poker_sessions.staff_cost). */
+  staffCost: number;
   players: SessionPlayer[];
   totals: {
     buyIn: number;

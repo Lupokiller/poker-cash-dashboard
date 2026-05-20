@@ -75,15 +75,15 @@ export function BankrollLine({ data }: { data: { session: string; balance: numbe
   );
 }
 
-export function RakeEvolutionChart({ data }: { data: { date: string; rake: number; label: string }[] }) {
+export function RakeEvolutionChart({ data }: { data: { date: string; lucroReal: number; label: string }[] }) {
   return (
-    <div className='glass-card flex h-80 flex-col p-4'>
-      <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Evolução do rake por sessão</h3>
-      <div className='min-h-0 flex-1'>
+    <div className='glass-card p-4'>
+      <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Evolução do lucro real</h3>
+      <div className='h-[260px] w-full min-w-0'>
         <ResponsiveContainer width='100%' height='100%'>
           <AreaChart data={data}>
             <defs>
-              <linearGradient id='rakeAreaFill' x1='0' y1='0' x2='0' y2='1'>
+              <linearGradient id='lucroRealAreaFill' x1='0' y1='0' x2='0' y2='1'>
                 <stop offset='0%' stopColor='#8b5cf6' stopOpacity={0.45} />
                 <stop offset='100%' stopColor='#1e3a8a' stopOpacity={0.05} />
               </linearGradient>
@@ -102,10 +102,10 @@ export function RakeEvolutionChart({ data }: { data: { date: string; rake: numbe
             />
             <Area
               type='monotone'
-              dataKey='rake'
+              dataKey='lucroReal'
               stroke='#a78bfa'
               strokeWidth={2.5}
-              fill='url(#rakeAreaFill)'
+              fill='url(#lucroRealAreaFill)'
               dot={{ r: 3, fill: '#c4b5fd', strokeWidth: 0 }}
             />
           </AreaChart>

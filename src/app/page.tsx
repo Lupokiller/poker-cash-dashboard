@@ -466,7 +466,11 @@ export default function Home() {
           sessions={sessions}
           loading={sessionsLoading}
           error={sessionsError}
+          canEditStaffCost={currentUser?.role === 'admin'}
           onRefresh={() => void loadSessions()}
+          onSessionUpdated={(updated) =>
+            setSessions((current) => current.map((s) => (s.id === updated.id ? updated : s)))
+          }
         />
       ) : (
         <UsersManagementTab />

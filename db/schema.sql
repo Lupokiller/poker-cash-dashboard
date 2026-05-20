@@ -23,6 +23,7 @@ CREATE INDEX IF NOT EXISTS registered_players_date_idx
 CREATE TABLE IF NOT EXISTS poker_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_date DATE NOT NULL UNIQUE,
+  staff_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
   finalized_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

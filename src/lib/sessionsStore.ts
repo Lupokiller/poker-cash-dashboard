@@ -1,9 +1,11 @@
 import { getDbPool } from './db';
+import { ensureStaffCostColumn } from './schemaMigrations';
 import { PaymentStatus, Session, SessionPlayer } from './types';
 
 interface SessionRow {
   id: string;
   session_date: string;
+  staff_cost: string | number;
   finalized_at: string;
 }
 
@@ -34,9 +36,10 @@ function sessionTotals(players: SessionPlayer[]) {
 }
 
 export async function readPokerSessions(): Promise<Session[]> {
+  await ensureStaffCostColumn();
   const pool = getDbPool();
   const sessionsResult = await pool.query<SessionRow>(
-    `SELECT id, session_date::text AS session_date, finalized_at FROM poker_sessions ORDER BY session_date ASC`
+    `SELECT id, session_date::text AS session_date, staff_cost, finalized_at FROM poker_sessions ORDER BY session_date ASC`
   );
 
   if (sessionsResult.rows.length === 0) {
@@ -65,10 +68,47 @@ export async function readPokerSessions(): Promise<Session[]> {
     return {
       id: row.id,
       date: row.session_date,
+      staffCost: Number(row.staff_cost) || 0,
       players,
       totals: sessionTotals(players),
     };
   });
+}
+
+export async function updateSessionStaffCost(sessionId: string, staffCost: number): Promise<Session | null> {
+  if (!Number.isFinite(staffCost) || staffCost < 0) {
+    throw new Error('Custo de staff invalido.');
+  }
+
+  await ensureStaffCostColumn();
+  const pool = getDbPool();
+  const result = await pool.query<SessionRow>(
+    `UPDATE poker_sessions
+     SET staff_cost = $2
+     WHERE id = $1
+     RETURNING id, session_date::text AS session_date, staff_cost, finalized_at`,
+    [sessionId, staffCost]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    return null;
+  }
+
+  const playersResult = await pool.query<SessionPlayerRow>(
+    `SELECT session_id, name, buy_in, cash_out, net, payment_status
+     FROM poker_session_players WHERE session_id = $1 ORDER BY name ASC`,
+    [sessionId]
+  );
+
+  const players = playersResult.rows.map(mapSessionPlayer);
+  return {
+    id: row.id,
+    date: row.session_date,
+    staffCost: Number(row.staff_cost) || 0,
+    players,
+    totals: sessionTotals(players),
+  };
 }
 
 export async function aggregateRegisteredPlayersForDate(sessionDate: string): Promise<SessionPlayer[]> {
@@ -148,17 +188,25 @@ export async function finalizeSessionForDate(sessionDate: string): Promise<Sessi
     throw new Error('Nenhum cadastro encontrado para esta data.');
   }
 
+  await ensureStaffCostColumn();
   const pool = getDbPool();
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
+    const prevStaff = await client.query<{ staff_cost: string }>(
+      `SELECT staff_cost FROM poker_sessions WHERE session_date = $1::date`,
+      [sessionDate]
+    );
+    const preservedStaffCost = Number(prevStaff.rows[0]?.staff_cost) || 0;
+
     await client.query(`DELETE FROM poker_sessions WHERE session_date = $1::date`, [sessionDate]);
 
     const ins = await client.query<SessionRow>(
-      `INSERT INTO poker_sessions (session_date) VALUES ($1::date) RETURNING id, session_date::text AS session_date, finalized_at`,
-      [sessionDate]
+      `INSERT INTO poker_sessions (session_date, staff_cost) VALUES ($1::date, $2)
+       RETURNING id, session_date::text AS session_date, staff_cost, finalized_at`,
+      [sessionDate, preservedStaffCost]
     );
 
     const sessionId = ins.rows[0].id;
@@ -177,6 +225,7 @@ export async function finalizeSessionForDate(sessionDate: string): Promise<Sessi
     return {
       id: sessionId,
       date: sessionDate,
+      staffCost: preservedStaffCost,
       players,
       totals,
     };
