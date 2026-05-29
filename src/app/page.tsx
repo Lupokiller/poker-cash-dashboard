@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CashAuditBanner } from '@/components/CashAuditBanner';
+import { ChipsInPlayCard } from '@/components/ChipsInPlayCard';
+import { TableClockPanel } from '@/components/TableClockPanel';
 import { KpiCard } from '@/components/KpiCard';
 import { PlayersTable } from '@/components/PlayersTable';
 import { RankingChart, BankrollLine, DistributionPie } from '@/components/Charts';
@@ -10,13 +12,22 @@ import { PlayerRegistrationTab } from '@/components/PlayerRegistrationTab';
 import { LogoutButton } from '@/components/LogoutButton';
 import { RakeBillingTab } from '@/components/RakeBillingTab';
 import { UsersManagementTab } from '@/components/UsersManagementTab';
+import { RankingTab } from '@/components/RankingTab';
+import { SessionCashSummary } from '@/components/SessionCashSummary';
 import { currency, prettyDate } from '@/lib/data';
 import { RegisteredPlayer, Session } from '@/lib/types';
+import { sumRegisteredPlayerCashTotals, sumSessionCashTotals } from '@/lib/cashTotalsModel';
+import { aggregateRegisteredPlayersForSession } from '@/lib/playerSessionModel';
 import { computeDashboardMetrics, DashboardScope, filterSessionsByScope } from '@/lib/dashboardModel';
-import { computeScopedCashAudit } from '@/lib/rakeModel';
+import { computeSessionGamificationBadges, computeGamificationBadgesFromPlayers, badgesMapToRecord } from '@/lib/playerGamificationModel';
+import { computeScopedCashAudit, sessionRakeBruto } from '@/lib/rakeModel';
+import {
+  computeChipsInPlayFromRegistered,
+  computeChipsInPlayFromSessionPlayers,
+} from '@/lib/chipsInPlayModel';
 
 type PeriodMode = 'session' | 'month' | 'total';
-type AppTab = 'dashboard' | 'cadastro' | 'faturamento' | 'usuarios';
+type AppTab = 'dashboard' | 'cadastro' | 'ranking' | 'faturamento' | 'usuarios';
 
 interface CurrentUser {
   id: string;
@@ -35,6 +46,7 @@ export default function Home() {
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [monthKey, setMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
   const [contactByPlayerName, setContactByPlayerName] = useState<Record<string, string>>({});
+  const [registeredPlayers, setRegisteredPlayers] = useState<RegisteredPlayer[]>([]);
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -54,50 +66,49 @@ export default function Home() {
     }
   }, []);
 
+  const loadRegisteredPlayers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/registered-players');
+      if (!response.ok) {
+        return;
+      }
+      const rows = (await response.json()) as unknown;
+      if (!Array.isArray(rows)) {
+        return;
+      }
+      const players = rows as RegisteredPlayer[];
+      const sorted = [...players].sort((a, b) => {
+        const byDate = String(b.date).localeCompare(String(a.date));
+        if (byDate !== 0) {
+          return byDate;
+        }
+        return String(b.id).localeCompare(String(a.id));
+      });
+      const map: Record<string, string> = {};
+      for (const r of sorted) {
+        const key = r.name.trim().toLowerCase();
+        const digits = r.phone?.replace(/\D/g, '') ?? '';
+        if (digits.length >= 10) {
+          map[key] = r.phone.trim();
+        }
+      }
+      setContactByPlayerName(map);
+      setRegisteredPlayers(players);
+    } catch {
+      /* contatos opcionais */
+    }
+  }, []);
+
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
 
   useEffect(() => {
-    if (activeTab !== 'dashboard') {
+    if (activeTab !== 'dashboard' && activeTab !== 'faturamento') {
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch('/api/registered-players');
-        if (!response.ok) {
-          return;
-        }
-        const rows = (await response.json()) as unknown;
-        if (cancelled || !Array.isArray(rows)) {
-          return;
-        }
-        const players = rows as RegisteredPlayer[];
-        const sorted = [...players].sort((a, b) => {
-          const byDate = String(b.date).localeCompare(String(a.date));
-          if (byDate !== 0) {
-            return byDate;
-          }
-          return String(b.id).localeCompare(String(a.id));
-        });
-        const map: Record<string, string> = {};
-        for (const r of sorted) {
-          const key = r.name.trim().toLowerCase();
-          const digits = r.phone?.replace(/\D/g, '') ?? '';
-          if (digits.length >= 10) {
-            map[key] = r.phone.trim();
-          }
-        }
-        setContactByPlayerName(map);
-      } catch {
-        /* contatos opcionais */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, sessions]);
+    void loadRegisteredPlayers();
+  }, [activeTab, sessions, loadRegisteredPlayers]);
 
   useEffect(() => {
     const loadMe = async () => {
@@ -174,6 +185,95 @@ export default function Home() {
     return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1));
   }, [monthKey]);
 
+  const liveRegisteredForDetailSession = useMemo(() => {
+    const sessionDate =
+      detailSession?.date ??
+      (periodMode === 'session' ? new Date().toISOString().slice(0, 10) : undefined);
+    if (!sessionDate) {
+      return [];
+    }
+    const rows = registeredPlayers.filter((player) => player.date === sessionDate);
+    return rows;
+  }, [detailSession, registeredPlayers, periodMode]);
+
+  const cashTotals = useMemo(() => {
+    if (periodMode === 'session' && liveRegisteredForDetailSession.length > 0) {
+      return sumRegisteredPlayerCashTotals(liveRegisteredForDetailSession);
+    }
+    return sumSessionCashTotals(scopedSessions);
+  }, [periodMode, liveRegisteredForDetailSession, scopedSessions]);
+
+  const cashSummaryLabel = useMemo(() => {
+    if (periodMode === 'session' && detailSession) {
+      return liveRegisteredForDetailSession.length > 0
+        ? `Sessão ${prettyDate(detailSession.date)} — totais ao vivo do cadastro`
+        : `Sessão ${prettyDate(detailSession.date)}`;
+    }
+    if (periodMode === 'month') {
+      return `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)} (${scopedSessions.length} sessões)`;
+    }
+    if (periodMode === 'total') {
+      return `Todas as sessões (${scopedSessions.length} no total)`;
+    }
+    return undefined;
+  }, [periodMode, detailSession, liveRegisteredForDetailSession.length, monthLabel, scopedSessions.length]);
+
+  const liveSessionPlayers = useMemo(() => {
+    if (periodMode !== 'session') {
+      return [];
+    }
+    const sessionDate = detailSession?.date ?? liveRegisteredForDetailSession[0]?.date;
+    if (!sessionDate || liveRegisteredForDetailSession.length === 0) {
+      return [];
+    }
+    return aggregateRegisteredPlayersForSession(liveRegisteredForDetailSession, sessionDate);
+  }, [periodMode, detailSession, liveRegisteredForDetailSession]);
+
+  const gamificationBadges = useMemo(() => {
+    if (liveSessionPlayers.length > 0) {
+      const players = liveSessionPlayers.map((p) => ({
+        name: p.name,
+        buyIn: p.buyIn,
+        cashOut: p.cashOut,
+        net: p.net,
+        paymentStatus: p.paymentStatus,
+        buyInCount: p.buyInCount,
+      }));
+      return badgesMapToRecord(computeGamificationBadgesFromPlayers(players));
+    }
+    if (periodMode === 'session' && scopedSessions.length === 1) {
+      return badgesMapToRecord(computeSessionGamificationBadges(scopedSessions));
+    }
+    return {};
+  }, [liveSessionPlayers, periodMode, scopedSessions]);
+
+  const sessionDateForAudit = useMemo(() => {
+    if (periodMode !== 'session') return null;
+    return detailSession?.date ?? liveRegisteredForDetailSession[0]?.date ?? null;
+  }, [periodMode, detailSession, liveRegisteredForDetailSession]);
+
+  const chipsInPlay = useMemo(() => {
+    if (!sessionDateForAudit) return null;
+    if (liveRegisteredForDetailSession.length > 0) {
+      return computeChipsInPlayFromRegistered(registeredPlayers, sessionDateForAudit);
+    }
+    if (detailSession) {
+      return computeChipsInPlayFromSessionPlayers(detailSession.players);
+    }
+    return null;
+  }, [sessionDateForAudit, liveRegisteredForDetailSession.length, registeredPlayers, detailSession]);
+
+  const dashboardSessionRake = useMemo(() => {
+    if (!sessionDateForAudit) return 0;
+    if (detailSession?.date === sessionDateForAudit) {
+      return sessionRakeBruto(detailSession);
+    }
+    const rows = registeredPlayers.filter((p) => p.date === sessionDateForAudit);
+    const buyIn = rows.reduce((acc, p) => acc + p.buyIn, 0);
+    const cashOut = rows.reduce((acc, p) => acc + p.cashOut, 0);
+    return buyIn - cashOut;
+  }, [sessionDateForAudit, detailSession, registeredPlayers]);
+
   return (
     <main className='min-h-screen bg-zinc-950 text-zinc-50'>
       <div className='mx-auto max-w-7xl space-y-6 p-4 md:p-8'>
@@ -225,6 +325,17 @@ export default function Home() {
             }`}
           >
             Cadastro de Jogadores
+          </button>
+          <button
+            type='button'
+            onClick={() => setActiveTab('ranking')}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'ranking'
+                ? 'border-amber-500/45 bg-amber-500/15 text-amber-100 shadow-lg shadow-amber-500/5'
+                : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+            }`}
+          >
+            Ranking
           </button>
           <button
             type='button'
@@ -361,13 +472,37 @@ export default function Home() {
             </p>
           </section>
 
+          {(scopedSessions.length > 0 ||
+            (periodMode === 'session' && liveRegisteredForDetailSession.length > 0)) && (
+            <SessionCashSummary
+              totalPix={cashTotals.totalPix}
+              totalDinheiro={cashTotals.totalDinheiro}
+              totalFiado={cashTotals.totalFiado}
+              label={cashSummaryLabel}
+            />
+          )}
+
           {!sessionsLoading && sessions.length === 0 && !sessionsError && (
             <p className='rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'>
               Ainda não há sessões finalizadas. Use &quot;Finalizar sessão do dia&quot; na aba Cadastro para gravar o dia e liberar os gráficos.
             </p>
           )}
 
+          {periodMode === 'session' && sessionDateForAudit && currentUser?.role === 'admin' && (
+            <TableClockPanel
+              sessionDate={sessionDateForAudit}
+              rakeBruto={dashboardSessionRake}
+              canControl
+              compact
+            />
+          )}
+
           <section className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+            {periodMode === 'session' && chipsInPlay && (
+              <div className='sm:col-span-2 xl:col-span-1'>
+                <ChipsInPlayCard snapshot={chipsInPlay} />
+              </div>
+            )}
             <KpiCard title='Total em jogo' value={currency(metrics.totalBuyIns - metrics.totalCashOuts)} tone='blue' />
             <KpiCard title='Total de buy-ins' value={currency(metrics.totalBuyIns)} tone='blue' />
             <KpiCard title='Total de cash-outs' value={currency(metrics.totalCashOuts)} tone='green' />
@@ -400,7 +535,15 @@ export default function Home() {
             )}
           </section>
 
-          <PlayersTable players={metrics.playersSummary} contactByPlayerName={contactByPlayerName} />
+          <PlayersTable
+            players={metrics.playersSummary}
+            liveSessionPlayers={liveSessionPlayers}
+            enablePayout={periodMode === 'session' && liveSessionPlayers.length > 0}
+            showPerformanceColumns={periodMode !== 'session' || liveSessionPlayers.length === 0}
+            gamificationBadges={gamificationBadges}
+            contactByPlayerName={contactByPlayerName}
+            onPayoutComplete={() => void loadRegisteredPlayers()}
+          />
 
           {metrics.playersSummary.length > 0 ? (
             <>
@@ -460,14 +603,26 @@ export default function Home() {
           </section>
         </>
       ) : activeTab === 'cadastro' ? (
-        <PlayerRegistrationTab onSessionsChanged={() => void loadSessions()} />
+        <PlayerRegistrationTab
+          onSessionsChanged={() => {
+            void loadSessions();
+            void loadRegisteredPlayers();
+          }}
+        />
+      ) : activeTab === 'ranking' ? (
+        <RankingTab sessions={sessions} loading={sessionsLoading} />
       ) : activeTab === 'faturamento' ? (
         <RakeBillingTab
           sessions={sessions}
+          registeredPlayers={registeredPlayers}
           loading={sessionsLoading}
           error={sessionsError}
           canEditStaffCost={currentUser?.role === 'admin'}
-          onRefresh={() => void loadSessions()}
+          canControlTable={currentUser?.role === 'admin'}
+          onRefresh={() => {
+            void loadSessions();
+            void loadRegisteredPlayers();
+          }}
           onSessionUpdated={(updated) =>
             setSessions((current) => current.map((s) => (s.id === updated.id ? updated : s)))
           }

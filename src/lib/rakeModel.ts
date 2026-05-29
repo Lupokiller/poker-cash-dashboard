@@ -1,4 +1,10 @@
 import { Session } from './types';
+import {
+  computeRakePerHour,
+  formatRakePerHour,
+  formatTableDuration,
+  getTableDurationMs,
+} from './sessionClockModel';
 
 /** Tolerância em centavos para arredondamentos de caixa. */
 export const CASH_RECONCILE_EPS = 0.02;
@@ -39,6 +45,11 @@ export interface SessionRakeRow {
   staffCost: number;
   lucroReal: number;
   reconciled: boolean;
+  tableStartedAt: string | null;
+  tableEndedAt: string | null;
+  durationLabel: string;
+  rakePerHour: number | null;
+  rakePerHourLabel: string;
 }
 
 export function isSessionReconciled(session: Session): boolean {
@@ -58,16 +69,25 @@ export function isSessionReconciled(session: Session): boolean {
 }
 
 export function buildSessionRakeRow(session: Session): SessionRakeRow {
+  const rakeBruto = sessionRakeBruto(session);
+  const durationMs = getTableDurationMs(session.tableStartedAt, session.tableEndedAt);
+  const rakePerHour = computeRakePerHour(rakeBruto, durationMs);
+
   return {
     sessionId: session.id,
     date: session.date,
     playersCount: session.totals.playersCount,
     totalEntradas: sessionTotalEntradas(session),
     totalSaidas: sessionTotalSaidas(session),
-    rakeBruto: sessionRakeBruto(session),
+    rakeBruto,
     staffCost: sessionStaffCost(session),
     lucroReal: sessionLucroReal(session),
     reconciled: isSessionReconciled(session),
+    tableStartedAt: session.tableStartedAt ?? null,
+    tableEndedAt: session.tableEndedAt ?? null,
+    durationLabel: formatTableDuration(durationMs),
+    rakePerHour,
+    rakePerHourLabel: formatRakePerHour(rakePerHour),
   };
 }
 

@@ -1,0 +1,2 @@
+ALTER TABLE poker_session_players
+  ADD COLUMN IF NOT EXISTS buy_in_count INTEGER NOT NULL DEFAULT 1;

@@ -1,3 +1,4 @@
+import { enrichPlayersSummaryWithPerformance } from './playerPerformanceModel';
 import { PlayerSummary, Session } from './types';
 
 export type DashboardScope =
@@ -88,7 +89,7 @@ export interface DashboardMetrics {
 export function computeDashboardMetrics(sessions: Session[]): DashboardMetrics {
   const totalBuyIns = sessions.reduce((acc, s) => acc + s.totals.buyIn, 0);
   const totalCashOuts = sessions.reduce((acc, s) => acc + s.totals.cashOut, 0);
-  const playersSummary = buildPlayersSummary(sessions);
+  const playersSummary = enrichPlayersSummaryWithPerformance(sessions, buildPlayersSummary(sessions));
   const pending = playersSummary.reduce((acc, p) => acc + (p.net > 0 ? p.net : 0), 0);
 
   const sortedByNet = [...playersSummary].sort((a, b) => b.net - a.net);

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { KpiCard } from '@/components/KpiCard';
+import { TableClockPanel } from '@/components/TableClockPanel';
 import { RakeEvolutionChart } from '@/components/Charts';
 import { currency, prettyDate } from '@/lib/data';
-import { computeRakeBillingMetrics, type SessionRakeRow } from '@/lib/rakeModel';
-import { Session } from '@/lib/types';
+import { computeRakeBillingMetrics, sessionRakeBruto, type SessionRakeRow } from '@/lib/rakeModel';
+import { RegisteredPlayer, Session } from '@/lib/types';
 
 function apiMessageFromBody(body: unknown, fallback: string): string {
   if (body && typeof body === 'object' && 'message' in body) {
@@ -87,6 +88,12 @@ function SessionRakeTableRow({
           {currency(row.rakeBruto)}
         </span>
       </td>
+      <td className='py-2.5 text-right tabular-nums text-zinc-400'>{row.durationLabel}</td>
+      <td className='py-2.5 text-right'>
+        <span className='inline-block rounded-lg bg-amber-500/10 px-2 py-1 font-semibold tabular-nums text-amber-300 ring-1 ring-amber-500/20'>
+          {row.rakePerHourLabel === '—' ? '—' : `${row.rakePerHourLabel}/h`}
+        </span>
+      </td>
       <td className='py-2.5 text-right'>
         <div className='flex justify-end'>
           {canEdit ? (
@@ -135,23 +142,51 @@ function SessionRakeTableRow({
 
 interface RakeBillingTabProps {
   sessions: Session[];
+  registeredPlayers?: RegisteredPlayer[];
   loading: boolean;
   error: string;
   canEditStaffCost: boolean;
+  canControlTable: boolean;
   onRefresh: () => void;
   onSessionUpdated: (session: Session) => void;
 }
 
+function liveRakeForDate(registeredPlayers: RegisteredPlayer[], date: string): number {
+  const rows = registeredPlayers.filter((p) => p.date === date);
+  const buyIn = rows.reduce((acc, p) => acc + p.buyIn, 0);
+  const cashOut = rows.reduce((acc, p) => acc + p.cashOut, 0);
+  return buyIn - cashOut;
+}
+
 export function RakeBillingTab({
   sessions,
+  registeredPlayers = [],
   loading,
   error,
   canEditStaffCost,
+  canControlTable,
   onRefresh,
   onSessionUpdated,
 }: RakeBillingTabProps) {
   const [staffSaveError, setStaffSaveError] = useState('');
+  const [clockDate, setClockDate] = useState(() => new Date().toISOString().slice(0, 10));
   const metrics = useMemo(() => computeRakeBillingMetrics(sessions), [sessions]);
+
+  const clockSession = useMemo(
+    () => sessions.find((s) => s.date === clockDate),
+    [sessions, clockDate]
+  );
+
+  const clockRakeBruto = useMemo(() => {
+    if (clockSession) return sessionRakeBruto(clockSession);
+    return liveRakeForDate(registeredPlayers, clockDate);
+  }, [clockSession, registeredPlayers, clockDate]);
+
+  const avgRakePerHour = useMemo(() => {
+    const withRate = metrics.rows.filter((r) => r.rakePerHour != null);
+    if (withRate.length === 0) return null;
+    return withRate.reduce((acc, r) => acc + (r.rakePerHour ?? 0), 0) / withRate.length;
+  }, [metrics.rows]);
 
   return (
     <section className='space-y-4'>
@@ -178,15 +213,42 @@ export function RakeBillingTab({
         {staffSaveError && <p className='text-sm text-rose-300'>{staffSaveError}</p>}
       </div>
 
+      <div className='glass-card space-y-3 p-4'>
+        <label className='flex max-w-xs flex-col gap-1 text-xs text-zinc-500'>
+          Data do controle da mesa
+          <input
+            type='date'
+            value={clockDate}
+            onChange={(e) => setClockDate(e.target.value)}
+            className='rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
+          />
+        </label>
+        <TableClockPanel
+          sessionDate={clockDate}
+          rakeBruto={clockRakeBruto}
+          canControl={canControlTable}
+          onClockChange={onRefresh}
+        />
+      </div>
+
       {!loading && sessions.length === 0 && !error && (
         <p className='rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'>
           Ainda não há sessões finalizadas. Finalize jogos na aba Cadastro para ver rake e faturamento aqui.
         </p>
       )}
 
-      <section className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'>
+      <section className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'>
         <KpiCard title='Rake total acumulado' value={currency(metrics.totalRakeAccumulated)} tone='green' />
         <KpiCard title='Média de rake por sessão' value={currency(metrics.averageRakePerSession)} tone='blue' />
+        <KpiCard
+          title='Média rake / hora'
+          value={
+            avgRakePerHour != null
+              ? `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgRakePerHour)}/h`
+              : '—'
+          }
+          tone='amber'
+        />
         <KpiCard title='Custo total de staff' value={currency(metrics.totalStaffCostAccumulated)} tone='amber' />
         <KpiCard
           title='Lucro real líquido'
@@ -213,6 +275,8 @@ export function RakeBillingTab({
                 <th className='py-3 text-right font-medium'>Total Entradas</th>
                 <th className='py-3 text-right font-medium'>Total Saídas</th>
                 <th className='py-3 text-right font-medium'>Rake Bruto</th>
+                <th className='py-3 text-right font-medium'>Duração</th>
+                <th className='py-3 text-right font-medium'>Rake / Hora</th>
                 <th className='py-3 text-right font-medium'>Custo Staff</th>
                 <th className='py-3 text-right font-medium'>Lucro Real</th>
                 <th className='py-3 text-right font-medium'>Status</th>
@@ -221,7 +285,7 @@ export function RakeBillingTab({
             <tbody className='text-zinc-300'>
               {loading && (
                 <tr>
-                  <td colSpan={8} className='py-8 text-center text-zinc-500'>
+                  <td colSpan={10} className='py-8 text-center text-zinc-500'>
                     Carregando sessões...
                   </td>
                 </tr>
@@ -239,7 +303,7 @@ export function RakeBillingTab({
                 ))}
               {!loading && metrics.rows.length === 0 && !error && (
                 <tr>
-                  <td colSpan={8} className='py-8 text-center text-zinc-500'>
+                  <td colSpan={10} className='py-8 text-center text-zinc-500'>
                     Nenhuma sessão no histórico.
                   </td>
                 </tr>

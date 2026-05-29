@@ -1,11 +1,22 @@
 ﻿export type PaymentStatus = 'a receber' | 'a pagar' | 'quitado';
 
+/** Meio de pagamento do buy-in/re-buy. */
+export type PaymentMethod = 'pix' | 'dinheiro' | 'fiado';
+
+export interface SessionClock {
+  sessionDate: string;
+  tableStartedAt: string | null;
+  tableEndedAt: string | null;
+}
+
 export interface SessionPlayer {
   name: string;
   buyIn: number;
   cashOut: number;
   net: number;
   paymentStatus: PaymentStatus;
+  /** Número de buy-ins/re-buys na sessão (default 1 para sessões antigas). */
+  buyInCount?: number;
 }
 
 export interface Session {
@@ -13,6 +24,16 @@ export interface Session {
   date: string;
   /** Valor pago ao staff na noite (persistido em poker_sessions.staff_cost). */
   staffCost: number;
+  /** Total recebido via Pix na sessão. */
+  totalPix: number;
+  /** Total recebido em espécie na sessão. */
+  totalDinheiro: number;
+  /** Total a receber em fiado na sessão. */
+  totalFiado: number;
+  /** Início do cronômetro da mesa (ISO). */
+  tableStartedAt?: string | null;
+  /** Encerramento do cronômetro da mesa (ISO). */
+  tableEndedAt?: string | null;
   players: SessionPlayer[];
   totals: {
     buyIn: number;
@@ -29,6 +50,9 @@ export interface PlayerSummary {
   net: number;
   sessions: number;
   paymentStatus: PaymentStatus;
+  avgRebuysPerSession?: number;
+  profitableSessionRate?: number;
+  avgNetPerSession?: number;
 }
 
 export interface PokerData {
@@ -48,4 +72,6 @@ export interface RegisteredPlayer {
   paymentStatus: PaymentStatus;
   phone: string;
   notes: string;
+  /** Meio de pagamento desta entrada. */
+  paymentMethod: PaymentMethod;
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { createRegisteredPlayer, readRegisteredPlayers } from '@/lib/registeredPlayersStore';
+import { createRegisteredPlayer, normalizePaymentMethod, readRegisteredPlayers } from '@/lib/registeredPlayersStore';
 import { PaymentStatus } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -13,6 +13,7 @@ interface CreateRegisteredPlayerInput {
   paymentStatus?: PaymentStatus;
   phone?: string;
   notes?: string;
+  paymentMethod?: string;
 }
 
 const allowedStatuses: PaymentStatus[] = ['a receber', 'a pagar', 'quitado'];
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
     ? (body.paymentStatus as PaymentStatus)
     : 'a receber';
 
+  const paymentMethod = normalizePaymentMethod(body.paymentMethod);
+
   try {
     const created = await createRegisteredPlayer({
       name: body.name.trim(),
@@ -53,6 +56,7 @@ export async function POST(request: Request) {
       paymentStatus,
       phone: body.phone?.trim() ?? '',
       notes: body.notes?.trim() ?? '',
+      paymentMethod,
     });
 
     return NextResponse.json(created, { status: 201 });

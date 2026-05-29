@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS registered_players (
   payment_status TEXT NOT NULL CHECK (payment_status IN ('a receber', 'a pagar', 'quitado')),
   phone TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
+  payment_method TEXT NOT NULL DEFAULT 'pix' CHECK (payment_method IN ('pix', 'dinheiro', 'fiado')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -24,6 +25,11 @@ CREATE TABLE IF NOT EXISTS poker_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_date DATE NOT NULL UNIQUE,
   staff_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_pix NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_dinheiro NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_fiado NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  table_started_at TIMESTAMPTZ,
+  table_ended_at TIMESTAMPTZ,
   finalized_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -54,7 +60,23 @@ CREATE TABLE IF NOT EXISTS app_users (
 
 CREATE INDEX IF NOT EXISTS app_users_login_idx ON app_users (login);
 
--- Administrador inicial: Caio Lupo / senha 210803 (login: caio lupo, maiusculas ignoradas)
+CREATE TABLE IF NOT EXISTS player_profiles (
+  name_key TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS player_profiles_display_name_idx ON player_profiles (display_name);
+
+CREATE TABLE IF NOT EXISTS session_clocks (
+  session_date DATE PRIMARY KEY,
+  table_started_at TIMESTAMPTZ,
+  table_ended_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Administrador inicial:
 INSERT INTO app_users (name, login, password_hash, role)
 VALUES (
   'Caio Lupo',

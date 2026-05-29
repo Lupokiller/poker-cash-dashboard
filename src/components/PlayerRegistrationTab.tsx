@@ -2,9 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PaymentStatus, RegisteredPlayer } from '@/lib/types';
+import { PaymentStatus, PaymentMethod, RegisteredPlayer } from '@/lib/types';
 import { currency } from '@/lib/data';
 import { PaymentStatusMenu } from '@/components/PaymentStatusMenu';
+import { PaymentMethodBadge, PaymentMethodSelector } from '@/components/PaymentMethodSelector';
+import { SessionCashSummary } from '@/components/SessionCashSummary';
+import { sumRegisteredPlayerCashTotals } from '@/lib/cashTotalsModel';
+import { sumFiadoAccumulatedForPlayer } from '@/lib/playerSessionModel';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
 function apiMessageFromBody(body: unknown, fallback: string): string {
@@ -19,12 +23,16 @@ interface PlayerFormState {
   name: string;
   buyIn: string;
   phone: string;
+  paymentMethod: PaymentMethod;
+  fiadoLimit: string;
 }
 
 const defaultForm: PlayerFormState = {
   name: '',
   buyIn: '',
   phone: '',
+  paymentMethod: 'pix',
+  fiadoLimit: '0',
 };
 
 function RegisteredPlayerRow({
@@ -105,6 +113,9 @@ function RegisteredPlayerRow({
       <td className='py-2.5 font-medium text-zinc-100'>{player.name}</td>
       <td className='py-2.5 text-right tabular-nums text-zinc-400'>{currency(player.buyIn)}</td>
       <td className='py-2.5 text-right'>
+        <PaymentMethodBadge method={player.paymentMethod} />
+      </td>
+      <td className='py-2.5 text-right'>
         <input
           type='number'
           min='0'
@@ -165,6 +176,9 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
   const [finalizeMessage, setFinalizeMessage] = useState('');
   const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
   const [enterAnimationIds, setEnterAnimationIds] = useState<Set<string>>(() => new Set());
+  const [fiadoBlocked, setFiadoBlocked] = useState(false);
+  const [forceFiadoSubmit, setForceFiadoSubmit] = useState(false);
+  const [fiadoAlert, setFiadoAlert] = useState('');
 
   const playersForSession = useMemo(
     () => players.filter((player) => player.date === sessionDate),
@@ -172,6 +186,11 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
   );
 
   const totalNet = useMemo(() => playersForSession.reduce((acc, player) => acc + player.net, 0), [playersForSession]);
+
+  const liveCashTotals = useMemo(
+    () => sumRegisteredPlayerCashTotals(playersForSession),
+    [playersForSession]
+  );
 
   const loadPlayers = async () => {
     setLoading(true);
@@ -199,6 +218,62 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
     void loadPlayers();
   }, []);
 
+  const loadFiadoLimitForName = async (name: string) => {
+    if (!name.trim()) return;
+    try {
+      const response = await fetch(`/api/player-profiles?name=${encodeURIComponent(name.trim())}`);
+      if (!response.ok) return;
+      const data = (await response.json()) as { fiadoLimit?: number };
+      setForm((current) => ({
+        ...current,
+        fiadoLimit: String(data.fiadoLimit ?? 0),
+      }));
+    } catch {
+      /* perfil opcional */
+    }
+  };
+
+  const saveFiadoLimit = async (name: string, limit: number) => {
+    if (!name.trim()) return;
+    await fetch('/api/player-profiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), fiadoLimit: limit }),
+    });
+  };
+
+  const evaluateFiadoLimit = (name: string, buyIn: number, paymentMethod: PaymentMethod) => {
+    if (paymentMethod !== 'fiado') {
+      setFiadoBlocked(false);
+      setFiadoAlert('');
+      return false;
+    }
+    const limit = Number(form.fiadoLimit || '0');
+    const extra = paymentMethod === 'fiado' ? buyIn : 0;
+    const accumulated = sumFiadoAccumulatedForPlayer(playersForSession, name, sessionDate, extra);
+    if (accumulated > limit) {
+      setFiadoBlocked(true);
+      setFiadoAlert(
+        `⚠️ ATENÇÃO: O jogador ${name.trim()} atingiu o limite máximo de Fiado permitido (Limite: ${currency(limit)} / Acumulado: ${currency(accumulated)}).`
+      );
+      return true;
+    }
+    setFiadoBlocked(false);
+    setFiadoAlert('');
+    return false;
+  };
+
+  useEffect(() => {
+    const buyIn = Number(form.buyIn || '0');
+    if (form.name.trim() && form.paymentMethod === 'fiado') {
+      evaluateFiadoLimit(form.name, buyIn, form.paymentMethod);
+    } else {
+      setFiadoBlocked(false);
+      setFiadoAlert('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name, form.buyIn, form.paymentMethod, playersForSession, sessionDate, form.fiadoLimit]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -208,9 +283,18 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
       return;
     }
 
+    const blocked = evaluateFiadoLimit(form.name, buyIn, form.paymentMethod);
+    if (blocked && !forceFiadoSubmit) {
+      setForceFiadoSubmit(true);
+      return;
+    }
+
     setError('');
+    setForceFiadoSubmit(false);
 
     try {
+      await saveFiadoLimit(form.name, Number(form.fiadoLimit || '0'));
+
       const response = await fetch('/api/registered-players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,6 +306,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
           paymentStatus: 'a receber' as PaymentStatus,
           phone: form.phone.trim(),
           notes: '',
+          paymentMethod: form.paymentMethod,
         }),
       });
 
@@ -235,6 +320,8 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
       setEnterAnimationIds((prev) => new Set(prev).add(created.id));
       setPlayers((current) => [created, ...current]);
       setForm(defaultForm);
+      setFiadoBlocked(false);
+      setFiadoAlert('');
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : 'Nao foi possivel salvar o cadastro.';
@@ -327,6 +414,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
           <input
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            onBlur={() => void loadFiadoLimitForName(form.name)}
             placeholder='Nome do jogador'
             className='rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
             required
@@ -339,6 +427,36 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
             placeholder='Buy-in pago'
             className='rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
           />
+          <div className='md:col-span-2'>
+            <p className='mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500'>Meio de pagamento</p>
+            <PaymentMethodSelector
+              value={form.paymentMethod}
+              onChange={(paymentMethod) => {
+                setForm((current) => ({ ...current, paymentMethod }));
+                setForceFiadoSubmit(false);
+              }}
+            />
+          </div>
+          <label className='flex flex-col gap-1 md:col-span-2'>
+            <span className='text-xs font-semibold uppercase tracking-wide text-violet-400/90'>
+              Limite de Fiado (opcional)
+            </span>
+            <span className='text-xs text-zinc-600'>Padrão R$ 0 — qualquer fiado exige confirmação manual se ultrapassar.</span>
+            <input
+              type='number'
+              min={0}
+              step='1'
+              value={form.fiadoLimit}
+              onChange={(event) => setForm((current) => ({ ...current, fiadoLimit: event.target.value }))}
+              placeholder='Ex: 1000'
+              className='max-w-xs rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-500/50'
+            />
+          </label>
+          {fiadoAlert && (
+            <div className='md:col-span-2 rounded-xl border border-rose-500/50 bg-rose-500/15 px-4 py-3 text-sm font-medium text-rose-200 ring-1 ring-rose-500/30'>
+              {fiadoAlert}
+            </div>
+          )}
           <input
             value={formatBrazilPhoneInput(form.phone)}
             onChange={(event) => {
@@ -352,12 +470,23 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
           />
           <button
             type='submit'
-            className='rounded-xl border border-sky-500/40 bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-900/20 transition hover:bg-sky-500 md:col-span-2'
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold text-white shadow-lg md:col-span-2 ${
+              fiadoBlocked
+                ? 'border-rose-500/50 bg-rose-600 shadow-rose-900/20 hover:bg-rose-500'
+                : 'border-sky-500/40 bg-sky-600 shadow-sky-900/20 hover:bg-sky-500'
+            } transition`}
           >
-            Salvar cadastro
+            {fiadoBlocked && forceFiadoSubmit ? 'Confirmar Forçar Cadastro' : fiadoBlocked ? 'Forçar Cadastro' : 'Salvar cadastro'}
           </button>
         </form>
       </div>
+
+      <SessionCashSummary
+        totalPix={liveCashTotals.totalPix}
+        totalDinheiro={liveCashTotals.totalDinheiro}
+        totalFiado={liveCashTotals.totalFiado}
+        label={`Sessão ${sessionDate} — totais ao vivo do cadastro`}
+      />
 
       <div className='glass-card p-4'>
         <div className='mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
@@ -385,6 +514,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
               <tr>
                 <th className='py-3 text-left font-medium'>Jogador</th>
                 <th className='py-3 text-right font-medium'>Buy-in</th>
+                <th className='py-3 text-right font-medium'>Pagamento</th>
                 <th className='py-3 text-right font-medium'>Cash-out</th>
                 <th className='py-3 text-right font-medium'>Resultado</th>
                 <th className='py-3 text-right font-medium'>Status</th>
@@ -412,14 +542,14 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
               ))}
               {!loading && playersForSession.length === 0 && (
                 <tr>
-                  <td colSpan={7} className='py-6 text-center text-zinc-500'>
+                  <td colSpan={8} className='py-6 text-center text-zinc-500'>
                     Nenhum cadastro para esta data de sessão.
                   </td>
                 </tr>
               )}
               {loading && (
                 <tr>
-                  <td colSpan={7} className='py-6 text-center text-zinc-500'>
+                  <td colSpan={8} className='py-6 text-center text-zinc-500'>
                     Carregando registros...
                   </td>
                 </tr>
