@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { createRegisteredPlayer, normalizePaymentMethod, readRegisteredPlayers } from '@/lib/registeredPlayersStore';
+import { registerOrAddBuyIn, normalizePaymentMethod, readRegisteredPlayers } from '@/lib/registeredPlayersStore';
 import { PaymentStatus } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -14,6 +14,7 @@ interface CreateRegisteredPlayerInput {
   phone?: string;
   notes?: string;
   paymentMethod?: string;
+  fiadoLimit?: number;
 }
 
 const allowedStatuses: PaymentStatus[] = ['a receber', 'a pagar', 'quitado'];
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   const paymentMethod = normalizePaymentMethod(body.paymentMethod);
 
   try {
-    const created = await createRegisteredPlayer({
+    const created = await registerOrAddBuyIn({
       name: body.name.trim(),
       date: body.date || new Date().toISOString().slice(0, 10),
       buyIn,
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
       phone: body.phone?.trim() ?? '',
       notes: body.notes?.trim() ?? '',
       paymentMethod,
+      fiadoLimit: Number(body.fiadoLimit ?? 0),
     });
 
     return NextResponse.json(created, { status: 201 });

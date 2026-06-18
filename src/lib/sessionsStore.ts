@@ -1,5 +1,6 @@
 import { getDbPool } from './db';
 import { normalizePaymentMethod } from './cashTotalsModel';
+import { cashTotalsFromBuyInLogs, parseBuyInLogs, resolveBuyInLogs } from './buyInLogsModel';
 import { ensureSessionSchema, ensureRegisteredPlayerSchema } from './schemaMigrations';
 import { readSessionClock } from './sessionClockStore';
 import { PaymentMethod, PaymentStatus, Session, SessionPlayer } from './types';
@@ -141,11 +142,12 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
     phone: string;
     notes: string;
     payment_method: string | null;
+    buy_in_logs: unknown;
     created_at: string;
   }
 
   const result = await pool.query<RegRow>(
-    `SELECT id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, created_at
+    `SELECT id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, buy_in_logs, created_at
      FROM registered_players WHERE date = $1::date ORDER BY created_at ASC`,
     [sessionDate]
   );
@@ -161,6 +163,7 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
     phone: row.phone,
     notes: row.notes,
     paymentMethod: normalizePaymentMethod(row.payment_method) as PaymentMethod,
+    buyInLogs: parseBuyInLogs(row.buy_in_logs),
     createdAt: row.created_at,
   }));
 
@@ -182,7 +185,13 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
   >();
 
   for (const p of rows) {
-    if (p.paymentMethod === 'dinheiro') {
+    const logs = resolveBuyInLogs(p);
+    const cashPart = logs.length > 0 ? cashTotalsFromBuyInLogs(logs) : null;
+    if (cashPart) {
+      totalPix += cashPart.totalPix;
+      totalDinheiro += cashPart.totalDinheiro;
+      totalFiado += cashPart.totalFiado;
+    } else if (p.paymentMethod === 'dinheiro') {
       totalDinheiro += p.buyIn;
     } else if (p.paymentMethod === 'fiado') {
       totalFiado += p.buyIn;
@@ -192,6 +201,7 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
 
     const key = p.name.trim().toLowerCase();
     const cur = byKey.get(key);
+    const entryCount = logs.length > 0 ? logs.length : 1;
     if (!cur) {
       byKey.set(key, {
         displayName: p.name.trim(),
@@ -199,14 +209,14 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
         cashOut: p.cashOut,
         net: p.net,
         paymentStatus: p.paymentStatus,
-        buyInCount: 1,
+        buyInCount: entryCount,
         lastTs: p.createdAt,
       });
     } else {
       cur.buyIn += p.buyIn;
       cur.cashOut += p.cashOut;
       cur.net += p.net;
-      cur.buyInCount += 1;
+      cur.buyInCount += entryCount;
       if (p.createdAt >= cur.lastTs) {
         cur.paymentStatus = p.paymentStatus;
         cur.lastTs = p.createdAt;

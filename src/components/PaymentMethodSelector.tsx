@@ -54,18 +54,33 @@ export function PaymentMethodSelector({
   );
 }
 
-export function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
+export function PaymentMethodBadge({
+  method,
+  compact,
+}: {
+  method: PaymentMethod | 'misto';
+  compact?: boolean;
+}) {
   const styles =
     method === 'pix'
       ? 'border-sky-400/40 bg-sky-500/15 text-sky-300'
       : method === 'dinheiro'
         ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
-        : 'border-violet-400/40 bg-violet-500/15 text-violet-300';
-  const label = method === 'pix' ? 'Pix' : method === 'dinheiro' ? 'Dinheiro' : 'Fiado';
+        : method === 'fiado'
+          ? 'border-violet-400/40 bg-violet-500/15 text-violet-300'
+          : 'border-amber-400/40 bg-amber-500/15 text-amber-300';
+  const label =
+    method === 'pix'
+      ? 'Pix'
+      : method === 'dinheiro'
+        ? 'Dinheiro'
+        : method === 'fiado'
+          ? 'Fiado'
+          : 'Misto';
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${styles}`}
+      className={`inline-flex rounded-full border font-semibold uppercase tracking-wide ${compact ? 'px-1.5 py-0 text-[9px]' : 'px-2 py-0.5 text-[10px]'} ${styles}`}
     >
       {label}
     </span>

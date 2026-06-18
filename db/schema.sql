@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS registered_players (
   phone TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   payment_method TEXT NOT NULL DEFAULT 'pix' CHECK (payment_method IN ('pix', 'dinheiro', 'fiado')),
+  buy_in_logs JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -63,6 +64,7 @@ CREATE INDEX IF NOT EXISTS app_users_login_idx ON app_users (login);
 CREATE TABLE IF NOT EXISTS player_profiles (
   name_key TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
+  phone TEXT NOT NULL DEFAULT '',
   fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

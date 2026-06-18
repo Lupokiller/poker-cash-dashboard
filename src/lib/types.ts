@@ -62,6 +62,13 @@ export interface PokerData {
   playersSummary: PlayerSummary[];
 }
 
+/** Entrada individual de buy-in/re-buy na sessão. */
+export interface BuyInLogEntry {
+  time: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+}
+
 export interface RegisteredPlayer {
   id: string;
   name: string;
@@ -72,6 +79,18 @@ export interface RegisteredPlayer {
   paymentStatus: PaymentStatus;
   phone: string;
   notes: string;
-  /** Meio de pagamento desta entrada. */
+  /** Meio de pagamento da última entrada (ou única). */
   paymentMethod: PaymentMethod;
+  /** Histórico de buy-ins com horário. */
+  buyInLogs: BuyInLogEntry[];
+  createdAt?: string;
+}
+
+/** Diretório fixo do clube (nome + telefone). */
+export interface ClubPlayerProfile {
+  nameKey: string;
+  displayName: string;
+  phone: string;
+  fiadoLimit: number;
+  updatedAt: string;
 }

@@ -1,3 +1,4 @@
+import { resolveBuyInLogs, cashTotalsFromBuyInLogs } from './buyInLogsModel';
 import { PaymentMethod, RegisteredPlayer, Session } from './types';
 
 export function sumRegisteredPlayerCashTotals(players: RegisteredPlayer[]): {
@@ -9,6 +10,14 @@ export function sumRegisteredPlayerCashTotals(players: RegisteredPlayer[]): {
   let totalDinheiro = 0;
   let totalFiado = 0;
   for (const player of players) {
+    const logs = resolveBuyInLogs(player);
+    if (logs.length > 0) {
+      const part = cashTotalsFromBuyInLogs(logs);
+      totalPix += part.totalPix;
+      totalDinheiro += part.totalDinheiro;
+      totalFiado += part.totalFiado;
+      continue;
+    }
     if (player.paymentMethod === 'dinheiro') {
       totalDinheiro += player.buyIn;
     } else if (player.paymentMethod === 'fiado') {

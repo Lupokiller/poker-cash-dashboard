@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { getPlayerProfileByName, readPlayerProfiles, upsertPlayerProfile } from '@/lib/playerProfilesStore';
+import { getPlayerProfileByName, readPlayerProfiles, upsertClubPlayerProfile } from '@/lib/playerProfilesStore';
 import { requireSession } from '@/lib/requireAuth';
 
 export const runtime = 'nodejs';
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     await requireSession();
     if (name?.trim()) {
       const profile = await getPlayerProfileByName(name);
-      return NextResponse.json(profile ?? { displayName: name.trim(), fiadoLimit: 0 });
+      return NextResponse.json(profile ?? { displayName: name.trim(), phone: '', fiadoLimit: 0 });
     }
     const profiles = await readPlayerProfiles();
     return NextResponse.json(profiles);
@@ -33,15 +33,16 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  let body: { name?: unknown; fiadoLimit?: unknown };
+  let body: { name?: unknown; fiadoLimit?: unknown; phone?: unknown };
   try {
-    body = (await request.json()) as { name?: unknown; fiadoLimit?: unknown };
+    body = (await request.json()) as { name?: unknown; fiadoLimit?: unknown; phone?: unknown };
   } catch {
     return NextResponse.json({ message: 'JSON invalido.' }, { status: 400 });
   }
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
-  const fiadoLimit = Number(body.fiadoLimit ?? 0);
+  const fiadoLimit = body.fiadoLimit != null ? Number(body.fiadoLimit) : undefined;
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : undefined;
 
   if (!name) {
     return NextResponse.json({ message: 'Nome do jogador e obrigatorio.' }, { status: 400 });
@@ -49,7 +50,7 @@ export async function PUT(request: Request) {
 
   try {
     await requireSession();
-    const profile = await upsertPlayerProfile(name, fiadoLimit);
+    const profile = await upsertClubPlayerProfile(name, { fiadoLimit, phone });
     return NextResponse.json(profile);
   } catch (error) {
     const authRes = authError(error);

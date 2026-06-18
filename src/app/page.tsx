@@ -18,6 +18,7 @@ import { currency, prettyDate } from '@/lib/data';
 import { RegisteredPlayer, Session } from '@/lib/types';
 import { sumRegisteredPlayerCashTotals, sumSessionCashTotals } from '@/lib/cashTotalsModel';
 import { aggregateRegisteredPlayersForSession } from '@/lib/playerSessionModel';
+import { unifyRegisteredPlayersForSession } from '@/lib/buyInLogsModel';
 import { computeDashboardMetrics, DashboardScope, filterSessionsByScope } from '@/lib/dashboardModel';
 import { computeSessionGamificationBadges, computeGamificationBadgesFromPlayers, badgesMapToRecord } from '@/lib/playerGamificationModel';
 import { computeScopedCashAudit, sessionRakeBruto } from '@/lib/rakeModel';
@@ -217,6 +218,15 @@ export default function Home() {
     }
     return undefined;
   }, [periodMode, detailSession, liveRegisteredForDetailSession.length, monthLabel, scopedSessions.length]);
+
+  const cashSummaryPlayers = useMemo(() => {
+    if (periodMode !== 'session' || liveRegisteredForDetailSession.length === 0) {
+      return undefined;
+    }
+    const sessionDate = detailSession?.date ?? liveRegisteredForDetailSession[0]?.date;
+    if (!sessionDate) return undefined;
+    return unifyRegisteredPlayersForSession(registeredPlayers, sessionDate);
+  }, [periodMode, liveRegisteredForDetailSession, registeredPlayers, detailSession?.date]);
 
   const liveSessionPlayers = useMemo(() => {
     if (periodMode !== 'session') {
@@ -479,6 +489,7 @@ export default function Home() {
               totalDinheiro={cashTotals.totalDinheiro}
               totalFiado={cashTotals.totalFiado}
               label={cashSummaryLabel}
+              players={cashSummaryPlayers}
             />
           )}
 

@@ -136,9 +136,29 @@ export async function ensureSessionSchema(): Promise<void> {
   await ensureSessionClockSchema();
 }
 
+let buyInLogsColumnReady: Promise<void> | null = null;
+
+/** Garante buy_in_logs em registered_players (idempotente). */
+export async function ensureBuyInLogsColumn(): Promise<void> {
+  if (!buyInLogsColumnReady) {
+    buyInLogsColumnReady = (async () => {
+      const pool = getDbPool();
+      await pool.query(
+        `ALTER TABLE registered_players
+         ADD COLUMN IF NOT EXISTS buy_in_logs JSONB NOT NULL DEFAULT '[]'::jsonb`
+      );
+    })().catch((error) => {
+      buyInLogsColumnReady = null;
+      throw error;
+    });
+  }
+  return buyInLogsColumnReady;
+}
+
 /** Executa migrações idempotentes para cadastros. */
 export async function ensureRegisteredPlayerSchema(): Promise<void> {
   await ensurePaymentMethodColumns();
+  await ensureBuyInLogsColumn();
   await ensurePlayerProfilesTable();
 }
 
@@ -153,10 +173,14 @@ export async function ensurePlayerProfilesTable(): Promise<void> {
         CREATE TABLE IF NOT EXISTS player_profiles (
           name_key TEXT PRIMARY KEY,
           display_name TEXT NOT NULL,
+          phone TEXT NOT NULL DEFAULT '',
           fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`
+      );
       await pool.query(
         `CREATE INDEX IF NOT EXISTS player_profiles_display_name_idx ON player_profiles (display_name)`
       );

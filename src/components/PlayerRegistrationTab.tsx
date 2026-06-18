@@ -2,12 +2,27 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PaymentStatus, PaymentMethod, RegisteredPlayer } from '@/lib/types';
+import { PaymentStatus, PaymentMethod, RegisteredPlayer, ClubPlayerProfile } from '@/lib/types';
 import { currency } from '@/lib/data';
 import { PaymentStatusMenu } from '@/components/PaymentStatusMenu';
 import { PaymentMethodBadge, PaymentMethodSelector } from '@/components/PaymentMethodSelector';
+import { PlayerNameAutocomplete } from '@/components/PlayerNameAutocomplete';
+import { BuyInHistoryHint } from '@/components/BuyInHistoryHint';
+import { QuickRebuyPopover } from '@/components/QuickRebuyPopover';
+import { QuickCashOutPopover } from '@/components/QuickCashOutPopover';
+import {
+  countPlayersByPaymentFilter,
+  PaymentMethodFilterBar,
+} from '@/components/PaymentMethodFilterBar';
 import { SessionCashSummary } from '@/components/SessionCashSummary';
 import { sumRegisteredPlayerCashTotals } from '@/lib/cashTotalsModel';
+import {
+  filterPlayersByPaymentMethod,
+  hasMixedPaymentMethods,
+  PaymentMethodFilter,
+  resolveBuyInLogs,
+  unifyRegisteredPlayersForSession,
+} from '@/lib/buyInLogsModel';
 import { sumFiadoAccumulatedForPlayer } from '@/lib/playerSessionModel';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
@@ -37,21 +52,29 @@ const defaultForm: PlayerFormState = {
 
 function RegisteredPlayerRow({
   player,
+  sessionDate,
+  sessionPlayers,
   onUpdated,
   onRemoved,
+  onRebuySaved,
   onError,
   enableEnterAnimation,
   onEnterAnimationComplete,
 }: {
   player: RegisteredPlayer;
+  sessionDate: string;
+  sessionPlayers: RegisteredPlayer[];
   onUpdated: (p: RegisteredPlayer) => void;
   onRemoved: (id: string) => void;
+  onRebuySaved: (saved: RegisteredPlayer) => void;
   onError: (message: string) => void;
   enableEnterAnimation: boolean;
   onEnterAnimationComplete?: () => void;
 }) {
   const [cashOutInput, setCashOutInput] = useState(String(player.cashOut));
   const [saving, setSaving] = useState(false);
+  const logs = resolveBuyInLogs(player);
+  const paymentBadgeMethod = hasMixedPaymentMethods(logs) ? 'misto' : player.paymentMethod;
 
   useEffect(() => {
     setCashOutInput(String(player.cashOut));
@@ -111,9 +134,11 @@ function RegisteredPlayerRow({
       }}
     >
       <td className='py-2.5 font-medium text-zinc-100'>{player.name}</td>
-      <td className='py-2.5 text-right tabular-nums text-zinc-400'>{currency(player.buyIn)}</td>
+      <td className='relative py-2.5 text-right'>
+        <BuyInHistoryHint player={player} />
+      </td>
       <td className='py-2.5 text-right'>
-        <PaymentMethodBadge method={player.paymentMethod} />
+        <PaymentMethodBadge method={paymentBadgeMethod} />
       </td>
       <td className='py-2.5 text-right'>
         <input
@@ -150,13 +175,23 @@ function RegisteredPlayerRow({
       </td>
       <td className='py-2.5 text-zinc-400'>{player.phone ? formatBrazilPhoneInput(player.phone.replace(/\D/g, '')) : '-'}</td>
       <td className='py-2.5 text-right'>
-        <button
-          type='button'
-          onClick={() => onRemoved(player.id)}
-          className='rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20'
-        >
-          Excluir
-        </button>
+        <div className='flex flex-wrap items-center justify-end gap-1.5'>
+          <QuickCashOutPopover player={player} onUpdated={onUpdated} onError={onError} />
+          <QuickRebuyPopover
+            player={player}
+            sessionDate={sessionDate}
+            sessionPlayers={sessionPlayers}
+            onSaved={onRebuySaved}
+            onError={onError}
+          />
+          <button
+            type='button'
+            onClick={() => onRemoved(player.id)}
+            className='rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20'
+          >
+            Excluir
+          </button>
+        </div>
       </td>
     </motion.tr>
   );
@@ -179,10 +214,21 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
   const [fiadoBlocked, setFiadoBlocked] = useState(false);
   const [forceFiadoSubmit, setForceFiadoSubmit] = useState(false);
   const [fiadoAlert, setFiadoAlert] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentMethodFilter>('all');
 
   const playersForSession = useMemo(
-    () => players.filter((player) => player.date === sessionDate),
+    () => unifyRegisteredPlayersForSession(players, sessionDate),
     [players, sessionDate]
+  );
+
+  const filteredPlayersForSession = useMemo(
+    () => filterPlayersByPaymentMethod(playersForSession, paymentFilter),
+    [playersForSession, paymentFilter]
+  );
+
+  const paymentFilterCounts = useMemo(
+    () => countPlayersByPaymentFilter(playersForSession),
+    [playersForSession]
   );
 
   const totalNet = useMemo(() => playersForSession.reduce((acc, player) => acc + player.net, 0), [playersForSession]);
@@ -218,28 +264,29 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
     void loadPlayers();
   }, []);
 
-  const loadFiadoLimitForName = async (name: string) => {
+  const loadProfileForName = async (name: string) => {
     if (!name.trim()) return;
     try {
       const response = await fetch(`/api/player-profiles?name=${encodeURIComponent(name.trim())}`);
       if (!response.ok) return;
-      const data = (await response.json()) as { fiadoLimit?: number };
+      const data = (await response.json()) as { fiadoLimit?: number; phone?: string };
       setForm((current) => ({
         ...current,
         fiadoLimit: String(data.fiadoLimit ?? 0),
+        phone: data.phone?.replace(/\D/g, '') ?? current.phone,
       }));
     } catch {
       /* perfil opcional */
     }
   };
 
-  const saveFiadoLimit = async (name: string, limit: number) => {
-    if (!name.trim()) return;
-    await fetch('/api/player-profiles', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), fiadoLimit: limit }),
-    });
+  const handleSelectClubPlayer = (profile: ClubPlayerProfile | { displayName: string; phone: string; fiadoLimit: number }) => {
+    setForm((current) => ({
+      ...current,
+      name: profile.displayName,
+      phone: profile.phone?.replace(/\D/g, '') ?? '',
+      fiadoLimit: String(profile.fiadoLimit ?? 0),
+    }));
   };
 
   const evaluateFiadoLimit = (name: string, buyIn: number, paymentMethod: PaymentMethod) => {
@@ -249,8 +296,13 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
       return false;
     }
     const limit = Number(form.fiadoLimit || '0');
-    const extra = paymentMethod === 'fiado' ? buyIn : 0;
-    const accumulated = sumFiadoAccumulatedForPlayer(playersForSession, name, sessionDate, extra);
+    const accumulated = sumFiadoAccumulatedForPlayer(
+      playersForSession,
+      name,
+      sessionDate,
+      buyIn,
+      paymentMethod === 'fiado'
+    );
     if (accumulated > limit) {
       setFiadoBlocked(true);
       setFiadoAlert(
@@ -293,8 +345,6 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
     setForceFiadoSubmit(false);
 
     try {
-      await saveFiadoLimit(form.name, Number(form.fiadoLimit || '0'));
-
       const response = await fetch('/api/registered-players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -307,6 +357,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
           phone: form.phone.trim(),
           notes: '',
           paymentMethod: form.paymentMethod,
+          fiadoLimit: Number(form.fiadoLimit || '0'),
         }),
       });
 
@@ -316,9 +367,8 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
         return;
       }
 
-      const created = body as RegisteredPlayer;
-      setEnterAnimationIds((prev) => new Set(prev).add(created.id));
-      setPlayers((current) => [created, ...current]);
+      const saved = body as RegisteredPlayer;
+      mergeSavedPlayer(saved);
       setForm(defaultForm);
       setFiadoBlocked(false);
       setFiadoAlert('');
@@ -372,6 +422,25 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
     setPlayers((current) => current.map((p) => (p.id === updated.id ? updated : p)));
   };
 
+  const mergeSavedPlayer = (saved: RegisteredPlayer) => {
+    setEnterAnimationIds((prev) => new Set(prev).add(saved.id));
+    setPlayers((current) => {
+      const withoutDuplicates = current.filter(
+        (player) =>
+          !(
+            player.date === sessionDate &&
+            player.name.trim().toLowerCase() === saved.name.trim().toLowerCase() &&
+            player.id !== saved.id
+          )
+      );
+      const existingIndex = withoutDuplicates.findIndex((player) => player.id === saved.id);
+      if (existingIndex >= 0) {
+        return withoutDuplicates.map((player) => (player.id === saved.id ? saved : player));
+      }
+      return [saved, ...withoutDuplicates];
+    });
+  };
+
   return (
     <section className='space-y-4'>
       <div className='glass-card p-4'>
@@ -411,12 +480,10 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
         </div>
 
         <form onSubmit={handleSubmit} className='grid gap-3 md:grid-cols-2'>
-          <input
+          <PlayerNameAutocomplete
             value={form.name}
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-            onBlur={() => void loadFiadoLimitForName(form.name)}
-            placeholder='Nome do jogador'
-            className='rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
+            onChange={(name) => setForm((current) => ({ ...current, name }))}
+            onSelectProfile={handleSelectClubPlayer}
             required
           />
           <input
@@ -463,7 +530,8 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
               const digits = event.target.value.replace(/\D/g, '').slice(0, 11);
               setForm((current) => ({ ...current, phone: digits }));
             }}
-            placeholder='Telefone / Pix — (11) 99999-9999'
+            onBlur={() => void loadProfileForName(form.name)}
+            placeholder='Telefone / Pix — preenchido ao selecionar jogador'
             inputMode='numeric'
             autoComplete='tel'
             className='md:col-span-2 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500/50'
@@ -476,7 +544,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
                 : 'border-sky-500/40 bg-sky-600 shadow-sky-900/20 hover:bg-sky-500'
             } transition`}
           >
-            {fiadoBlocked && forceFiadoSubmit ? 'Confirmar Forçar Cadastro' : fiadoBlocked ? 'Forçar Cadastro' : 'Salvar cadastro'}
+            {fiadoBlocked && forceFiadoSubmit ? 'Confirmar Forçar Cadastro' : fiadoBlocked ? 'Forçar Cadastro' : 'Salvar cadastro / re-buy'}
           </button>
         </form>
       </div>
@@ -486,6 +554,7 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
         totalDinheiro={liveCashTotals.totalDinheiro}
         totalFiado={liveCashTotals.totalFiado}
         label={`Sessão ${sessionDate} — totais ao vivo do cadastro`}
+        players={playersForSession}
       />
 
       <div className='glass-card p-4'>
@@ -508,6 +577,14 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
           </div>
         </div>
 
+        <div className='mb-4'>
+          <PaymentMethodFilterBar
+            value={paymentFilter}
+            onChange={setPaymentFilter}
+            counts={paymentFilterCounts}
+          />
+        </div>
+
         <div className='overflow-x-auto'>
           <table className='min-w-full text-sm'>
             <thead className='text-xs uppercase tracking-wide text-zinc-500'>
@@ -523,12 +600,15 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
               </tr>
             </thead>
             <tbody className='text-zinc-300'>
-              {playersForSession.map((player) => (
+              {filteredPlayersForSession.map((player) => (
                 <RegisteredPlayerRow
                   key={player.id}
                   player={player}
+                  sessionDate={sessionDate}
+                  sessionPlayers={playersForSession}
                   onUpdated={updatePlayerInList}
                   onRemoved={removePlayer}
+                  onRebuySaved={mergeSavedPlayer}
                   onError={setError}
                   enableEnterAnimation={enterAnimationIds.has(player.id)}
                   onEnterAnimationComplete={() =>
@@ -540,6 +620,13 @@ export function PlayerRegistrationTab({ onSessionsChanged }: PlayerRegistrationT
                   }
                 />
               ))}
+              {!loading && filteredPlayersForSession.length === 0 && playersForSession.length > 0 && (
+                <tr>
+                  <td colSpan={8} className='py-6 text-center text-zinc-500'>
+                    Nenhum jogador com este meio de pagamento no histórico.
+                  </td>
+                </tr>
+              )}
               {!loading && playersForSession.length === 0 && (
                 <tr>
                   <td colSpan={8} className='py-6 text-center text-zinc-500'>

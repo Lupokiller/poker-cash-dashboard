@@ -1,3 +1,4 @@
+import { fiadoFromBuyInLogs, resolveBuyInLogs } from './buyInLogsModel';
 import { PaymentStatus, RegisteredPlayer } from './types';
 
 export interface AggregatedSessionPlayer {
@@ -12,7 +13,7 @@ export interface AggregatedSessionPlayer {
   buyInCount: number;
 }
 
-/** Agrega buy-ins/re-buys de um jogador na sessão (para payout e dashboard ao vivo). */
+/** Agrega jogadores da sessão (1 linha por jogador após unificação). */
 export function aggregateRegisteredPlayersForSession(
   players: RegisteredPlayer[],
   sessionDate: string
@@ -37,6 +38,8 @@ export function aggregateRegisteredPlayersForSession(
 
     const key = player.name.trim().toLowerCase();
     const sortKey = player.id;
+    const logs = resolveBuyInLogs(player);
+    const entryCount = logs.length > 0 ? logs.length : 1;
     const cur = byKey.get(key);
 
     if (!cur) {
@@ -48,14 +51,14 @@ export function aggregateRegisteredPlayersForSession(
         paymentStatus: player.paymentStatus,
         phone: player.phone,
         latestRegistrationId: player.id,
-        buyInCount: 1,
+        buyInCount: entryCount,
         sortKey,
       });
     } else {
       cur.buyIn += player.buyIn;
       cur.cashOut += player.cashOut;
       cur.net += player.net;
-      cur.buyInCount += 1;
+      cur.buyInCount += entryCount;
       if (player.phone.trim()) {
         cur.phone = player.phone;
       }
@@ -82,19 +85,25 @@ export function aggregateRegisteredPlayersForSession(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Soma fiado acumulado do jogador na sessão (buy-ins com paymentMethod fiado). */
+/** Soma fiado acumulado do jogador na sessão. */
 export function sumFiadoAccumulatedForPlayer(
   players: RegisteredPlayer[],
   playerName: string,
   sessionDate: string,
-  extraBuyIn = 0
+  extraBuyIn = 0,
+  extraIsFiado = false
 ): number {
   const key = playerName.trim().toLowerCase();
-  let total = extraBuyIn;
+  let total = extraIsFiado ? extraBuyIn : 0;
+
   for (const p of players) {
     if (p.date !== sessionDate) continue;
     if (p.name.trim().toLowerCase() !== key) continue;
-    if (p.paymentMethod === 'fiado') {
+
+    const logs = resolveBuyInLogs(p);
+    if (logs.length > 0) {
+      total += fiadoFromBuyInLogs(logs);
+    } else if (p.paymentMethod === 'fiado') {
       total += p.buyIn;
     }
   }
