@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS player_profiles (
   name_key TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
   phone TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  club_status TEXT NOT NULL DEFAULT 'ativo' CHECK (club_status IN ('ativo', 'vip', 'inativo', 'bloqueado')),
+  first_seen_at DATE,
   fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

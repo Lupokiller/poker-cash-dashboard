@@ -1,4 +1,5 @@
 import { enrichPlayersSummaryWithPerformance } from './playerPerformanceModel';
+import { sessionRakeBruto } from './rakeModel';
 import { PlayerSummary, Session } from './types';
 
 export type DashboardScope =
@@ -64,11 +65,12 @@ export function buildPlayersSummary(sessions: Session[]): PlayerSummary[] {
   }));
 }
 
+/** Rake acumulado por sessão (entradas − saídas), visão do caixa do clube. */
 export function buildBankrollPoints(sessions: Session[]) {
   const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
   let running = 0;
   return sorted.map((s) => {
-    running += s.totals.net;
+    running += sessionRakeBruto(s);
     return { session: s.date.slice(5), balance: running, id: s.id };
   });
 }

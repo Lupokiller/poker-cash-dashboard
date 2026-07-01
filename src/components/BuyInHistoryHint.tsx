@@ -12,6 +12,7 @@ export function BuyInHistoryHint({ player }: { player: RegisteredPlayer }) {
   const ref = useRef<HTMLDivElement>(null);
   const logs = resolveBuyInLogs(player);
   const count = logs.length;
+  const entryLabel = count === 1 ? '1 entrada' : `${count} entradas`;
 
   useEffect(() => {
     if (!open) return;
@@ -26,24 +27,27 @@ export function BuyInHistoryHint({ player }: { player: RegisteredPlayer }) {
 
   return (
     <div className='relative inline-flex flex-col items-end gap-0.5' ref={ref}>
-      <div className='inline-flex items-center gap-1.5'>
-        <span className='font-medium tabular-nums text-zinc-300'>{currency(player.buyIn)}</span>
+      <div className='inline-flex flex-wrap items-center justify-end gap-1.5'>
+        <span className='font-semibold tabular-nums text-zinc-200'>{currency(player.buyIn)}</span>
+        <span className='rounded-md border border-zinc-700/80 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400'>
+          {entryLabel}
+        </span>
         {count > 1 && (
           <button
             type='button'
             onClick={() => setOpen((current) => !current)}
-            className='inline-flex items-center gap-0.5 rounded-md border border-zinc-700/80 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300 transition hover:border-sky-500/40 hover:bg-sky-500/10'
+            className='inline-flex items-center gap-0.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300 transition hover:border-sky-500/50 hover:bg-sky-500/15'
             title='Ver histórico de buy-ins'
           >
             <History className='h-3 w-3' />
-            {count}x
+            Detalhe
           </button>
         )}
       </div>
 
       {count > 1 && (
         <p className='max-w-[14rem] truncate text-[10px] tabular-nums text-zinc-600'>
-          {logs.map((log) => `[${log.time}] ${currency(log.amount)}`).join(' | ')}
+          {logs.map((log) => `[${log.time}] ${currency(log.amount)}`).join(' · ')}
         </p>
       )}
 

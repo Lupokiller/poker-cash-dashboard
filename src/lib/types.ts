@@ -86,11 +86,19 @@ export interface RegisteredPlayer {
   createdAt?: string;
 }
 
-/** Diretório fixo do clube (nome + telefone). */
+/** Status manual do jogador no clube. */
+export type ClubPlayerStatus = 'ativo' | 'vip' | 'inativo' | 'bloqueado';
+
+/** Badge de atividade calculada automaticamente. */
+export type PlayerActivityBadge = 'ativo' | 'sumido';
+
+/** Diretório fixo do clube. */
 export interface ClubPlayerProfile {
   nameKey: string;
   displayName: string;
   phone: string;
-  fiadoLimit: number;
+  notes: string;
+  clubStatus: ClubPlayerStatus;
+  firstSeenAt: string | null;
   updatedAt: string;
 }

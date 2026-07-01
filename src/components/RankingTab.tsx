@@ -6,6 +6,8 @@ import { Crown, Medal, Sparkles, Trophy, Users, CalendarDays, Search } from 'luc
 import { currency, prettyDate } from '@/lib/data';
 import { filterSessionsByScope, DashboardScope } from '@/lib/dashboardModel';
 import { computeSeasonRanking, SeasonRankingEntry } from '@/lib/rankingModel';
+import { computeHistoricalPlayerBadges } from '@/lib/playerDirectoryModel';
+import { HistoricalPlayerBadges } from '@/components/HistoricalPlayerBadges';
 import { Session } from '@/lib/types';
 
 type PeriodMode = 'session' | 'month' | 'total';
@@ -175,11 +177,13 @@ function RankingRow({
   leaderPoints,
   index,
   periodMode,
+  historicalBadges,
 }: {
   row: SeasonRankingEntry;
   leaderPoints: number;
   index: number;
   periodMode: PeriodMode;
+  historicalBadges?: ReturnType<typeof computeHistoricalPlayerBadges>;
 }) {
   const pct = leaderPoints > 0 ? Math.round((row.totalPoints / leaderPoints) * 100) : 0;
   const sessionText =
@@ -223,6 +227,11 @@ function RankingRow({
           <div className='mt-2'>
             <PointBreakdown row={row} />
           </div>
+          {historicalBadges && historicalBadges.length > 0 && (
+            <div className='mt-2'>
+              <HistoricalPlayerBadges badges={historicalBadges} />
+            </div>
+          )}
         </div>
       </div>
     </motion.li>
@@ -416,6 +425,15 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
 
   const ranking = useMemo(() => computeSeasonRanking(scopedSessions), [scopedSessions]);
 
+  const historicalBadgesByName = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeHistoricalPlayerBadges>>();
+    for (const row of ranking) {
+      const key = row.name.trim().toLowerCase();
+      map.set(key, computeHistoricalPlayerBadges(sessions, key));
+    }
+    return map;
+  }, [ranking, sessions]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return ranking;
@@ -605,6 +623,11 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
                         <span className='text-lg font-black tabular-nums text-amber-300'>{row.totalPoints} pts</span>
                       </div>
                       <PointBreakdown row={row} />
+                      <div className='mt-2'>
+                        <HistoricalPlayerBadges
+                          badges={historicalBadgesByName.get(row.name.trim().toLowerCase()) ?? []}
+                        />
+                      </div>
                     </div>
                     <span
                       className={`hidden text-sm font-semibold tabular-nums sm:block ${
@@ -622,6 +645,7 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
                   leaderPoints={leaderPoints}
                   index={index}
                   periodMode={periodMode}
+                  historicalBadges={historicalBadgesByName.get(row.name.trim().toLowerCase())}
                 />
               )
             )}

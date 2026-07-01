@@ -42,7 +42,7 @@ const CARD_CONFIG: Record<
     subtext: 'text-emerald-400',
   },
   fiado: {
-    label: 'Total a Receber (Fiado)',
+    label: 'Total a receber no fim (Fiado)',
     icon: HandCoins,
     border: 'border-violet-500/25',
     bg: 'from-violet-500/10',

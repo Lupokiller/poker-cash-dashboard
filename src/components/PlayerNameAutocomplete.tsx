@@ -13,7 +13,7 @@ export function PlayerNameAutocomplete({
 }: {
   value: string;
   onChange: (name: string) => void;
-  onSelectProfile: (profile: ClubPlayerProfile | { displayName: string; phone: string; fiadoLimit: number }) => void;
+  onSelectProfile: (profile: ClubPlayerProfile | { displayName: string; phone: string }) => void;
   placeholder?: string;
   required?: boolean;
 }) {

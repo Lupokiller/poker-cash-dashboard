@@ -174,6 +174,9 @@ export async function ensurePlayerProfilesTable(): Promise<void> {
           name_key TEXT PRIMARY KEY,
           display_name TEXT NOT NULL,
           phone TEXT NOT NULL DEFAULT '',
+          notes TEXT NOT NULL DEFAULT '',
+          club_status TEXT NOT NULL DEFAULT 'ativo',
+          first_seen_at DATE,
           fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -181,6 +184,27 @@ export async function ensurePlayerProfilesTable(): Promise<void> {
       await pool.query(
         `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`
       );
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`
+      );
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS club_status TEXT NOT NULL DEFAULT 'ativo'`
+      );
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS first_seen_at DATE`
+      );
+      await pool.query(`
+        ALTER TABLE player_profiles DROP CONSTRAINT IF EXISTS player_profiles_club_status_check
+      `);
+      await pool.query(`
+        ALTER TABLE player_profiles
+          ADD CONSTRAINT player_profiles_club_status_check
+          CHECK (club_status IN ('ativo', 'vip', 'inativo', 'bloqueado'))
+      `).catch((error: { code?: string }) => {
+        if (error.code !== '42710') {
+          throw error;
+        }
+      });
       await pool.query(
         `CREATE INDEX IF NOT EXISTS player_profiles_display_name_idx ON player_profiles (display_name)`
       );

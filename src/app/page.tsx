@@ -12,6 +12,7 @@ import { PlayerRegistrationTab } from '@/components/PlayerRegistrationTab';
 import { LogoutButton } from '@/components/LogoutButton';
 import { RakeBillingTab } from '@/components/RakeBillingTab';
 import { UsersManagementTab } from '@/components/UsersManagementTab';
+import { PlayersDirectoryTab } from '@/components/PlayersDirectoryTab';
 import { RankingTab } from '@/components/RankingTab';
 import { SessionCashSummary } from '@/components/SessionCashSummary';
 import { currency, prettyDate } from '@/lib/data';
@@ -28,7 +29,7 @@ import {
 } from '@/lib/chipsInPlayModel';
 
 type PeriodMode = 'session' | 'month' | 'total';
-type AppTab = 'dashboard' | 'cadastro' | 'ranking' | 'faturamento' | 'usuarios';
+type AppTab = 'dashboard' | 'cadastro' | 'jogadores' | 'ranking' | 'faturamento' | 'usuarios';
 
 interface CurrentUser {
   id: string;
@@ -338,6 +339,17 @@ export default function Home() {
           </button>
           <button
             type='button'
+            onClick={() => setActiveTab('jogadores')}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'jogadores'
+                ? 'border-emerald-500/45 bg-emerald-500/15 text-emerald-100 shadow-lg shadow-emerald-500/5'
+                : 'border-zinc-800 bg-zinc-900/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+            }`}
+          >
+            Jogadores
+          </button>
+          <button
+            type='button'
             onClick={() => setActiveTab('ranking')}
             className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
               activeTab === 'ranking'
@@ -615,11 +627,14 @@ export default function Home() {
         </>
       ) : activeTab === 'cadastro' ? (
         <PlayerRegistrationTab
+          canControlTable={currentUser?.role === 'admin'}
           onSessionsChanged={() => {
             void loadSessions();
             void loadRegisteredPlayers();
           }}
         />
+      ) : activeTab === 'jogadores' ? (
+        <PlayersDirectoryTab />
       ) : activeTab === 'ranking' ? (
         <RankingTab sessions={sessions} loading={sessionsLoading} />
       ) : activeTab === 'faturamento' ? (

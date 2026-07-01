@@ -52,10 +52,44 @@ export function RankingChart({ data }: { data: { name: string; net: number }[] }
   );
 }
 
+export function PlayerNetLine({ data }: { data: { label: string; cumulativeNet: number }[] }) {
+  if (data.length === 0) {
+    return (
+      <div className='flex h-48 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/40 text-sm text-zinc-500'>
+        Sem sessões finalizadas para exibir evolução.
+      </div>
+    );
+  }
+
+  return (
+    <div className='h-48 w-full min-w-0'>
+      <ResponsiveContainer width='100%' height='100%'>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray='3 3' stroke={gridStroke} vertical={false} />
+          <XAxis dataKey='label' stroke={axisStroke} tick={{ fill: '#a1a1aa', fontSize: 10 }} />
+          <YAxis stroke={axisStroke} tick={{ fill: '#a1a1aa', fontSize: 10 }} />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            formatter={(value) => [currency(Number(value ?? 0)), 'Resultado acumulado']}
+            labelStyle={{ color: '#e4e4e7' }}
+          />
+          <Line
+            type='monotone'
+            dataKey='cumulativeNet'
+            stroke='#34d399'
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: '#34d399' }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function BankrollLine({ data }: { data: { session: string; balance: number }[] }) {
   return (
     <div className='glass-card flex h-80 flex-col p-4'>
-      <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Evolucao do caixa por sessao</h3>
+      <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Evolução do caixa por sessão</h3>
       <div className='min-h-0 flex-1'>
         <ResponsiveContainer width='100%' height='100%'>
           <LineChart data={data}>
@@ -64,7 +98,7 @@ export function BankrollLine({ data }: { data: { session: string; balance: numbe
             <YAxis stroke={axisStroke} tick={{ fill: '#a1a1aa', fontSize: 11 }} />
             <Tooltip
               contentStyle={tooltipStyle}
-              formatter={(value) => currency(Number(value ?? 0))}
+              formatter={(value) => [currency(Number(value ?? 0)), 'Rake acumulado']}
               labelStyle={{ color: '#e4e4e7' }}
             />
             <Line type='monotone' dataKey='balance' stroke='#38bdf8' strokeWidth={2.5} dot={{ r: 3 }} />

@@ -7,7 +7,7 @@ import {
 } from './buyInLogsModel';
 import { normalizePaymentMethod } from './cashTotalsModel';
 import { aggregateRegisteredPlayersForSession, AggregatedSessionPlayer } from './playerSessionModel';
-import { upsertClubPlayerProfile } from './playerProfilesStore';
+import { getPlayerProfileByName, upsertClubPlayerProfile } from './playerProfilesStore';
 import { ensureRegisteredPlayerSchema } from './schemaMigrations';
 import { PaymentMethod, PaymentStatus, RegisteredPlayer } from './types';
 
@@ -64,7 +64,6 @@ export interface RegisterBuyInInput {
   phone?: string;
   notes?: string;
   paymentMethod?: PaymentMethod;
-  fiadoLimit?: number;
 }
 
 /** Cadastra jogador novo ou soma buy-in na linha existente da sessão. */
@@ -77,9 +76,12 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
   const date = input.date;
   const buyIn = Number(input.buyIn) || 0;
   const paymentMethod = normalizePaymentMethod(input.paymentMethod);
-  const phone = input.phone?.trim() ?? '';
+  const inputPhone = input.phone?.trim() ?? '';
   const notes = input.notes?.trim() ?? '';
   const newLog = createBuyInLogEntry(buyIn, paymentMethod);
+
+  const clubProfile = inputPhone ? null : await getPlayerProfileByName(name);
+  const phone = inputPhone || clubProfile?.phone?.trim() || '';
 
   try {
     await client.query('BEGIN');
@@ -159,10 +161,7 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
 
     await client.query('COMMIT');
 
-    await upsertClubPlayerProfile(name, {
-      phone,
-      fiadoLimit: input.fiadoLimit,
-    });
+    await upsertClubPlayerProfile(name, { phone });
 
     return mapRow(resultRow);
   } catch (error) {

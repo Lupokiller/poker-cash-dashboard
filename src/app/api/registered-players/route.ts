@@ -14,7 +14,6 @@ interface CreateRegisteredPlayerInput {
   phone?: string;
   notes?: string;
   paymentMethod?: string;
-  fiadoLimit?: number;
 }
 
 const allowedStatuses: PaymentStatus[] = ['a receber', 'a pagar', 'quitado'];
@@ -58,7 +57,6 @@ export async function POST(request: Request) {
       phone: body.phone?.trim() ?? '',
       notes: body.notes?.trim() ?? '',
       paymentMethod,
-      fiadoLimit: Number(body.fiadoLimit ?? 0),
     });
 
     return NextResponse.json(created, { status: 201 });
