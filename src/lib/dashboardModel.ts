@@ -92,7 +92,16 @@ export function computeDashboardMetrics(sessions: Session[]): DashboardMetrics {
   const totalBuyIns = sessions.reduce((acc, s) => acc + s.totals.buyIn, 0);
   const totalCashOuts = sessions.reduce((acc, s) => acc + s.totals.cashOut, 0);
   const playersSummary = enrichPlayersSummaryWithPerformance(sessions, buildPlayersSummary(sessions));
-  const pending = playersSummary.reduce((acc, p) => acc + (p.net > 0 ? p.net : 0), 0);
+  // Só o que a casa ainda deve pagar (status a pagar), por sessão — evita contar quitados.
+  const pending = sessions.reduce(
+    (acc, session) =>
+      acc +
+      session.players.reduce(
+        (sum, player) => sum + (player.paymentStatus === 'a pagar' ? Math.max(player.net, 0) : 0),
+        0
+      ),
+    0
+  );
 
   const sortedByNet = [...playersSummary].sort((a, b) => b.net - a.net);
   const topWinner = sortedByNet[0];

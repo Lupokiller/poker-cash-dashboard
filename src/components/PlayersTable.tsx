@@ -70,6 +70,7 @@ export function PlayersTable({
   const [liveRows, setLiveRows] = useState<AggregatedSessionPlayer[]>(liveSessionPlayers);
   const [statusByKey, setStatusByKey] = useState<Record<string, PaymentStatus>>({});
   const [statusSaving, setStatusSaving] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState('');
 
   const useLive = liveSessionPlayers.length > 0;
 
@@ -90,6 +91,7 @@ export function PlayersTable({
     async (player: AggregatedSessionPlayer, status: PaymentStatus) => {
       const rowKey = `live:${player.name}`;
       setStatusSaving(rowKey);
+      setStatusError('');
       try {
         const response = await fetch(`/api/registered-players/${player.latestRegistrationId}`, {
           method: 'PATCH',
@@ -97,6 +99,7 @@ export function PlayersTable({
           body: JSON.stringify({ cashOut: player.cashOut, paymentStatus: status }),
         });
         if (!response.ok) {
+          setStatusError('Não foi possível atualizar o status de pagamento.');
           return;
         }
         setLiveRows((current) =>
@@ -107,6 +110,8 @@ export function PlayersTable({
           )
         );
         onPayoutComplete?.();
+      } catch {
+        setStatusError('Não foi possível atualizar o status de pagamento.');
       } finally {
         setStatusSaving(null);
       }
@@ -185,6 +190,8 @@ export function PlayersTable({
           />
         </div>
 
+        {statusError && <p className='mb-3 text-sm text-rose-300'>{statusError}</p>}
+
         <div className='overflow-x-auto'>
           <table className='min-w-full text-sm'>
             <thead className='text-xs uppercase tracking-wide text-zinc-500'>
@@ -208,7 +215,7 @@ export function PlayersTable({
               {list.map((p) => {
                 const due = p.net <= 0 ? Math.abs(p.net) : p.net;
                 const chargeHref =
-                  p.paymentStatus === 'a pagar' && p.phone.trim()
+                  p.paymentStatus === 'a receber' && p.phone.trim()
                     ? buildWhatsAppChargeLink(p.phone, p.name, due)
                     : null;
                 const receiptHref =
@@ -283,9 +290,9 @@ export function PlayersTable({
                           value={p.paymentStatus}
                           onChange={(status) => handleStatusChange(p, status)}
                           align='right'
-                          disabled={statusSaving === p.key}
+                          disabled={!p.isLive || statusSaving === p.key}
                         />
-                        {p.paymentStatus === 'a pagar' && chargeHref && (
+                        {p.paymentStatus === 'a receber' && chargeHref && (
                           <a
                             href={chargeHref}
                             target='_blank'

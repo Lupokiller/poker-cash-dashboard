@@ -22,6 +22,9 @@ CREATE INDEX IF NOT EXISTS registered_players_created_at_idx
 CREATE INDEX IF NOT EXISTS registered_players_date_idx
   ON registered_players (date DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS registered_players_date_name_uidx
+  ON registered_players (date, LOWER(TRIM(name)));
+
 CREATE TABLE IF NOT EXISTS poker_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_date DATE NOT NULL UNIQUE,

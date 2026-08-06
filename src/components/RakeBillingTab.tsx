@@ -7,6 +7,7 @@ import { TableClockPanel } from '@/components/TableClockPanel';
 import { RakeEvolutionChart } from '@/components/Charts';
 import { currency, prettyDate } from '@/lib/data';
 import { computeRakeBillingMetrics, sessionRakeBruto, type SessionRakeRow } from '@/lib/rakeModel';
+import { todayLocalISODate } from '@/lib/time';
 import { RegisteredPlayer, Session } from '@/lib/types';
 
 function apiMessageFromBody(body: unknown, fallback: string): string {
@@ -169,7 +170,7 @@ export function RakeBillingTab({
   onSessionUpdated,
 }: RakeBillingTabProps) {
   const [staffSaveError, setStaffSaveError] = useState('');
-  const [clockDate, setClockDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [clockDate, setClockDate] = useState(() => todayLocalISODate());
   const metrics = useMemo(() => computeRakeBillingMetrics(sessions), [sessions]);
 
   const clockSession = useMemo(

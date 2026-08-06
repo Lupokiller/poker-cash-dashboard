@@ -8,6 +8,7 @@ import { filterSessionsByScope, DashboardScope } from '@/lib/dashboardModel';
 import { computeSeasonRanking, SeasonRankingEntry } from '@/lib/rankingModel';
 import { computeHistoricalPlayerBadges } from '@/lib/playerDirectoryModel';
 import { HistoricalPlayerBadges } from '@/components/HistoricalPlayerBadges';
+import { currentLocalYearMonth } from '@/lib/time';
 import { Session } from '@/lib/types';
 
 type PeriodMode = 'session' | 'month' | 'total';
@@ -361,7 +362,7 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
   const [query, setQuery] = useState('');
   const [periodMode, setPeriodMode] = useState<PeriodMode>('total');
   const [selectedSessionId, setSelectedSessionId] = useState('');
-  const [monthKey, setMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monthKey, setMonthKey] = useState(() => currentLocalYearMonth());
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => a.date.localeCompare(b.date)),
@@ -391,7 +392,17 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
   const monthLabel = formatMonthLabel(monthKey);
 
   const periodCopy = useMemo(() => {
-    if (periodMode === 'session' && detailSession) {
+    if (periodMode === 'session') {
+      if (!detailSession) {
+        return {
+          badge: 'Ranking da sessão',
+          title: 'Escolha uma sessão',
+          subtitle: 'Selecione a noite para ver o ranking pontuado.',
+          podiumTitle: 'Pódio da noite',
+          emptyTitle: 'Selecione uma sessão',
+          emptyMessage: 'Escolha uma sessão finalizada no seletor acima.',
+        };
+      }
       return {
         badge: 'Ranking da sessão',
         title: prettyDate(detailSession.date),
@@ -453,7 +464,7 @@ export function RankingTab({ sessions, loading }: { sessions: Session[]; loading
     };
   }, [ranking, scopedSessions.length]);
 
-  const topThree = filtered.slice(0, 3);
+  const topThree = ranking.slice(0, 3);
   const leaderPoints = ranking[0]?.totalPoints ?? 1;
 
   if (loading) {

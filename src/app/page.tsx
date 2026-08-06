@@ -27,6 +27,7 @@ import {
   computeChipsInPlayFromRegistered,
   computeChipsInPlayFromSessionPlayers,
 } from '@/lib/chipsInPlayModel';
+import { currentLocalYearMonth, todayLocalISODate } from '@/lib/time';
 
 type PeriodMode = 'session' | 'month' | 'total';
 type AppTab = 'dashboard' | 'cadastro' | 'jogadores' | 'ranking' | 'faturamento' | 'usuarios';
@@ -46,7 +47,7 @@ export default function Home() {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('total');
   const [selectedSessionId, setSelectedSessionId] = useState('');
-  const [monthKey, setMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monthKey, setMonthKey] = useState(() => currentLocalYearMonth());
   const [contactByPlayerName, setContactByPlayerName] = useState<Record<string, string>>({});
   const [registeredPlayers, setRegisteredPlayers] = useState<RegisteredPlayer[]>([]);
 
@@ -189,13 +190,11 @@ export default function Home() {
 
   const liveRegisteredForDetailSession = useMemo(() => {
     const sessionDate =
-      detailSession?.date ??
-      (periodMode === 'session' ? new Date().toISOString().slice(0, 10) : undefined);
+      detailSession?.date ?? (periodMode === 'session' ? todayLocalISODate() : undefined);
     if (!sessionDate) {
       return [];
     }
-    const rows = registeredPlayers.filter((player) => player.date === sessionDate);
-    return rows;
+    return unifyRegisteredPlayersForSession(registeredPlayers, sessionDate);
   }, [detailSession, registeredPlayers, periodMode]);
 
   const cashTotals = useMemo(() => {
@@ -224,10 +223,8 @@ export default function Home() {
     if (periodMode !== 'session' || liveRegisteredForDetailSession.length === 0) {
       return undefined;
     }
-    const sessionDate = detailSession?.date ?? liveRegisteredForDetailSession[0]?.date;
-    if (!sessionDate) return undefined;
-    return unifyRegisteredPlayersForSession(registeredPlayers, sessionDate);
-  }, [periodMode, liveRegisteredForDetailSession, registeredPlayers, detailSession?.date]);
+    return liveRegisteredForDetailSession;
+  }, [periodMode, liveRegisteredForDetailSession]);
 
   const liveSessionPlayers = useMemo(() => {
     if (periodMode !== 'session') {

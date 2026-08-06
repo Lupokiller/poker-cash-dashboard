@@ -56,7 +56,7 @@ export function QuickCashOutPopover({
   const previewStatus = paymentStatusFromNet(previewNet);
 
   const handleConfirm = async () => {
-    if (!Number.isFinite(cashOutDraft) || cashOutDraft < 0) {
+    if (cashOutInput.trim() === '' || !Number.isFinite(cashOutDraft) || cashOutDraft < 0) {
       onError('Informe um valor de cash-out válido.');
       return;
     }

@@ -64,7 +64,6 @@ export async function syncPlayerDirectoryFromRegistrations(): Promise<void> {
     FROM ranked r
     JOIN firsts f ON f.name_key = r.name_key
     ON CONFLICT (name_key) DO UPDATE SET
-      display_name = EXCLUDED.display_name,
       phone = CASE
         WHEN EXCLUDED.phone <> '' THEN EXCLUDED.phone
         ELSE player_profiles.phone

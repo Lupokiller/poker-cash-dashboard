@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
 import { requireAdmin } from '@/lib/requireAuth';
 import { endTable, readSessionClock, startTable } from '@/lib/sessionClockStore';
+import { todayLocalISODate } from '@/lib/time';
 
 export const runtime = 'nodejs';
 
@@ -22,7 +23,7 @@ function isValidDate(value: string): boolean {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+  const date = searchParams.get('date') ?? todayLocalISODate();
   if (!isValidDate(date)) {
     return NextResponse.json({ message: 'Data invalida.' }, { status: 400 });
   }
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const action = body.action;
-  const date = typeof body.date === 'string' ? body.date : new Date().toISOString().slice(0, 10);
+  const date = typeof body.date === 'string' ? body.date : todayLocalISODate();
   if (!isValidDate(date)) {
     return NextResponse.json({ message: 'Data invalida.' }, { status: 400 });
   }

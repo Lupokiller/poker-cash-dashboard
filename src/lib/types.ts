@@ -100,5 +100,5 @@ export interface ClubPlayerProfile {
   notes: string;
   clubStatus: ClubPlayerStatus;
   firstSeenAt: string | null;
-  updatedAt: string;
+  updatedAt: string | null;
 }

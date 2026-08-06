@@ -41,6 +41,7 @@ import {
   computeGamificationBadgesFromPlayers,
   GamificationBadge,
 } from '@/lib/playerGamificationModel';
+import { todayLocalISODate } from '@/lib/time';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
 function apiMessageFromBody(body: unknown, fallback: string): string {
@@ -271,7 +272,7 @@ export function PlayerRegistrationTab({
   const [players, setPlayers] = useState<RegisteredPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [sessionDate, setSessionDate] = useState(() => todayLocalISODate());
   const [finalizeLoading, setFinalizeLoading] = useState(false);
   const [finalizeMessage, setFinalizeMessage] = useState('');
   const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
@@ -393,8 +394,12 @@ export function PlayerRegistrationTab({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const buyIn = Number(form.buyIn || '0');
+    const buyIn = Number(form.buyIn);
     if (!form.name.trim()) return;
+    if (!Number.isFinite(buyIn) || buyIn <= 0) {
+      setError('Informe um buy-in maior que zero.');
+      return;
+    }
 
     setError('');
     try {
@@ -456,13 +461,26 @@ export function PlayerRegistrationTab({
 
   const removePlayer = async (id: string) => {
     setError('');
-    const response = await fetch(`/api/registered-players/${id}`, { method: 'DELETE' });
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      setError(apiMessageFromBody(body, 'Nao foi possivel excluir o registro.'));
-      return;
+    try {
+      const target = players.find((player) => player.id === id);
+      const response = await fetch(`/api/registered-players/${id}`, { method: 'DELETE' });
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(apiMessageFromBody(body, 'Nao foi possivel excluir o registro.'));
+        return;
+      }
+      setPlayers((current) =>
+        current.filter((player) => {
+          if (!target) return player.id !== id;
+          return !(
+            player.date === target.date &&
+            player.name.trim().toLowerCase() === target.name.trim().toLowerCase()
+          );
+        })
+      );
+    } catch {
+      setError('Nao foi possivel excluir o registro.');
     }
-    setPlayers((current) => current.filter((player) => player.id !== id));
   };
 
   const updatePlayerInList = (updated: RegisteredPlayer) => {

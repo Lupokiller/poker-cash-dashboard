@@ -29,7 +29,7 @@ export function RankingChart({ data }: { data: { name: string; net: number }[] }
   return (
     <div className='glass-card flex h-80 flex-col p-4'>
       <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Ranking lucro/prejuizo</h3>
-      <div className='min-h-0 flex-1'>
+      <div className='h-[280px] w-full min-w-0'>
         <ResponsiveContainer width='100%' height='100%'>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray='3 3' stroke={gridStroke} vertical={false} />
@@ -90,7 +90,7 @@ export function BankrollLine({ data }: { data: { session: string; balance: numbe
   return (
     <div className='glass-card flex h-80 flex-col p-4'>
       <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Evolução do caixa por sessão</h3>
-      <div className='min-h-0 flex-1'>
+      <div className='h-[280px] w-full min-w-0'>
         <ResponsiveContainer width='100%' height='100%'>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray='3 3' stroke={gridStroke} />
@@ -154,7 +154,7 @@ export function DistributionPie({ data }: { data: { name: string; value: number 
   return (
     <div className='glass-card flex h-80 flex-col p-4'>
       <h3 className='mb-3 text-sm font-semibold text-zinc-200'>Distribuicao dos resultados</h3>
-      <div className='min-h-0 flex-1'>
+      <div className='h-[280px] w-full min-w-0'>
         <ResponsiveContainer width='100%' height='100%'>
           <PieChart>
             <Pie data={data} dataKey='value' nameKey='name' outerRadius={88} innerRadius={28}>

@@ -42,7 +42,7 @@ const CARD_CONFIG: Record<
     subtext: 'text-emerald-400',
   },
   fiado: {
-    label: 'Total a receber no fim (Fiado)',
+    label: 'Buy-ins em fiado (crédito)',
     icon: HandCoins,
     border: 'border-violet-500/25',
     bg: 'from-violet-500/10',

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { getPlayerProfileByName, readPlayerProfiles, upsertClubPlayerProfile } from '@/lib/playerProfilesStore';
+import {
+  getPlayerProfileByName,
+  playerNameKey,
+  readPlayerProfiles,
+  upsertClubPlayerProfile,
+} from '@/lib/playerProfilesStore';
 import { requireSession } from '@/lib/requireAuth';
 import { ClubPlayerStatus } from '@/lib/types';
 
@@ -24,11 +29,13 @@ export async function GET(request: Request) {
       const profile = await getPlayerProfileByName(name);
       return NextResponse.json(
         profile ?? {
+          nameKey: playerNameKey(name),
           displayName: name.trim(),
           phone: '',
           notes: '',
           clubStatus: 'ativo' as ClubPlayerStatus,
           firstSeenAt: null,
+          updatedAt: null,
         }
       );
     }

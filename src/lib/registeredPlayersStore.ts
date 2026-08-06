@@ -9,7 +9,7 @@ import { normalizePaymentMethod } from './cashTotalsModel';
 import { aggregateRegisteredPlayersForSession, AggregatedSessionPlayer } from './playerSessionModel';
 import { getPlayerProfileByName, upsertClubPlayerProfile } from './playerProfilesStore';
 import { ensureRegisteredPlayerSchema } from './schemaMigrations';
-import { PaymentMethod, PaymentStatus, RegisteredPlayer } from './types';
+import { BuyInLogEntry, PaymentMethod, PaymentStatus, RegisteredPlayer } from './types';
 
 interface RegisteredPlayerRow {
   id: string;
@@ -46,6 +46,21 @@ function mapRow(row: RegisteredPlayerRow): RegisteredPlayer {
   };
 }
 
+function resolveLogsFromRow(row: RegisteredPlayerRow): BuyInLogEntry[] {
+  const logs = parseBuyInLogs(row.buy_in_logs);
+  if (logs.length > 0) return logs;
+  if (Number(row.buy_in) > 0) {
+    return buyInLogsFromLegacyRows([
+      {
+        buyIn: Number(row.buy_in),
+        paymentMethod: normalizePaymentMethod(row.payment_method),
+        createdAt: row.created_at,
+      },
+    ]);
+  }
+  return [];
+}
+
 export async function readRegisteredPlayers() {
   await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
@@ -74,7 +89,10 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
 
   const name = input.name.trim();
   const date = input.date;
-  const buyIn = Number(input.buyIn) || 0;
+  const buyIn = Number(input.buyIn);
+  if (!Number.isFinite(buyIn) || buyIn <= 0) {
+    throw new Error('Buy-in deve ser maior que zero.');
+  }
   const paymentMethod = normalizePaymentMethod(input.paymentMethod);
   const inputPhone = input.phone?.trim() ?? '';
   const notes = input.notes?.trim() ?? '';
@@ -117,33 +135,17 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
       resultRow = inserted.rows[0];
     } else {
       const primary = existing.rows[0];
-      let logs = parseBuyInLogs(primary.buy_in_logs);
-      if (logs.length === 0 && existing.rows.length === 1) {
-        logs = buyInLogsFromLegacyRows([
-          {
-            buyIn: Number(primary.buy_in),
-            paymentMethod: normalizePaymentMethod(primary.payment_method),
-            createdAt: primary.created_at,
-          },
-        ]);
-      } else if (logs.length === 0 && existing.rows.length > 1) {
-        logs = buyInLogsFromLegacyRows(
-          existing.rows.map((row) => ({
-            buyIn: Number(row.buy_in),
-            paymentMethod: normalizePaymentMethod(row.payment_method),
-            createdAt: row.created_at,
-          }))
-        );
-      }
-
-      logs = [...logs, newLog];
+      // Sempre reconstrói a partir de todas as linhas (evita perder buy-ins de duplicatas).
+      const logs = [...existing.rows.flatMap(resolveLogsFromRow), newLog];
       const totalBuyIn = sumBuyInLogs(logs);
-      const cashOut = Number(primary.cash_out) || 0;
       const mergedPhone = phone || primary.phone;
 
+      // Rebuy após cash-out: reabre a conta (senão fica quitado com fichas velhas).
       const updated = await client.query<RegisteredPlayerRow>(
         `UPDATE registered_players
          SET buy_in = $2,
+             cash_out = 0,
+             payment_status = 'a receber',
              payment_method = $3,
              phone = $4,
              buy_in_logs = $5::jsonb
@@ -193,17 +195,58 @@ export async function updateRegisteredPlayerCashAndStatus(
 ) {
   await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
-  const result = await pool.query<RegisteredPlayerRow>(
-    `UPDATE registered_players
-     SET cash_out = $2, payment_status = $3
-     WHERE id = $1
-     RETURNING ${SELECT_FIELDS}`,
-    [id, cashOut, paymentStatus]
-  );
-  if (result.rows.length === 0) {
-    return null;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const found = await client.query<RegisteredPlayerRow>(
+      `SELECT ${SELECT_FIELDS} FROM registered_players WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const target = found.rows[0];
+    const siblings = await client.query<RegisteredPlayerRow>(
+      `SELECT ${SELECT_FIELDS}
+       FROM registered_players
+       WHERE date = $1::date AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+       ORDER BY created_at ASC
+       FOR UPDATE`,
+      [target.date, target.name]
+    );
+
+    const primary = siblings.rows[0] ?? target;
+    const logs = siblings.rows.flatMap(resolveLogsFromRow);
+    const totalBuyIn = logs.length > 0 ? sumBuyInLogs(logs) : Number(primary.buy_in);
+
+    const updated = await client.query<RegisteredPlayerRow>(
+      `UPDATE registered_players
+       SET buy_in = $2,
+           cash_out = $3,
+           payment_status = $4,
+           buy_in_logs = $5::jsonb
+       WHERE id = $1
+       RETURNING ${SELECT_FIELDS}`,
+      [primary.id, totalBuyIn, cashOut, paymentStatus, JSON.stringify(logs)]
+    );
+
+    const duplicateIds = siblings.rows.filter((row) => row.id !== primary.id).map((row) => row.id);
+    if (duplicateIds.length > 0) {
+      await client.query(`DELETE FROM registered_players WHERE id = ANY($1::uuid[])`, [duplicateIds]);
+    }
+
+    await client.query('COMMIT');
+    return mapRow(updated.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-  return mapRow(result.rows[0]);
 }
 
 export async function finalizePlayerPayout(
@@ -213,35 +256,88 @@ export async function finalizePlayerPayout(
 ): Promise<AggregatedSessionPlayer | null> {
   await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
+  const client = await pool.connect();
 
-  const found = await pool.query<{ id: string }>(
-    `SELECT id FROM registered_players
-     WHERE date = $1::date AND LOWER(TRIM(name)) = LOWER(TRIM($2))
-     ORDER BY created_at ASC
-     LIMIT 1`,
-    [sessionDate, name]
-  );
+  try {
+    await client.query('BEGIN');
 
-  if (found.rows.length === 0) {
-    return null;
+    const found = await client.query<RegisteredPlayerRow>(
+      `SELECT ${SELECT_FIELDS}
+       FROM registered_players
+       WHERE date = $1::date AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+       ORDER BY created_at ASC
+       FOR UPDATE`,
+      [sessionDate, name]
+    );
+
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const primary = found.rows[0];
+    const logs = found.rows.flatMap(resolveLogsFromRow);
+    const totalBuyIn = logs.length > 0 ? sumBuyInLogs(logs) : Number(primary.buy_in);
+
+    await client.query(
+      `UPDATE registered_players
+       SET buy_in = $2,
+           cash_out = $3,
+           payment_status = 'quitado',
+           buy_in_logs = $4::jsonb
+       WHERE id = $1`,
+      [primary.id, totalBuyIn, cashOut, JSON.stringify(logs)]
+    );
+
+    const duplicateIds = found.rows.slice(1).map((row) => row.id);
+    if (duplicateIds.length > 0) {
+      await client.query(`DELETE FROM registered_players WHERE id = ANY($1::uuid[])`, [duplicateIds]);
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `UPDATE registered_players
-     SET cash_out = $2, payment_status = 'quitado'
-     WHERE id = $1`,
-    [found.rows[0].id, cashOut]
-  );
 
   const all = await readRegisteredPlayers();
   const aggregated = aggregateRegisteredPlayersForSession(all, sessionDate);
   return aggregated.find((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 }
 
+/** Remove o jogador da sessão (todas as linhas duplicadas do mesmo nome+data). */
 export async function deleteRegisteredPlayerById(id: string) {
+  await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
-  const result = await pool.query(`DELETE FROM registered_players WHERE id = $1`, [id]);
-  return (result.rowCount ?? 0) > 0;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    const found = await client.query<{ id: string; name: string; date: string }>(
+      `SELECT id, name, date::text AS date FROM registered_players WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+
+    const row = found.rows[0];
+    await client.query(
+      `DELETE FROM registered_players
+       WHERE date = $1::date AND LOWER(TRIM(name)) = LOWER(TRIM($2))`,
+      [row.date, row.name]
+    );
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export { normalizePaymentMethod };

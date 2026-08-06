@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
 import { registerOrAddBuyIn, normalizePaymentMethod, readRegisteredPlayers } from '@/lib/registeredPlayersStore';
+import { todayLocalISODate } from '@/lib/time';
 import { PaymentStatus } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -39,8 +40,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Nome do jogador é obrigatório.' }, { status: 400 });
   }
 
-  const buyIn = Number(body.buyIn ?? 0);
+  const buyIn = Number(body.buyIn);
+  if (!Number.isFinite(buyIn) || buyIn <= 0) {
+    return NextResponse.json({ message: 'Buy-in deve ser maior que zero.' }, { status: 400 });
+  }
+
   const cashOut = Number(body.cashOut ?? 0);
+  if (!Number.isFinite(cashOut) || cashOut < 0) {
+    return NextResponse.json({ message: 'Cash-out invalido.' }, { status: 400 });
+  }
+
   const paymentStatus = allowedStatuses.includes(body.paymentStatus ?? 'a receber')
     ? (body.paymentStatus as PaymentStatus)
     : 'a receber';
@@ -50,7 +59,7 @@ export async function POST(request: Request) {
   try {
     const created = await registerOrAddBuyIn({
       name: body.name.trim(),
-      date: body.date || new Date().toISOString().slice(0, 10),
+      date: body.date || todayLocalISODate(),
       buyIn,
       cashOut,
       paymentStatus,
@@ -61,6 +70,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('Buy-in')) {
+      return NextResponse.json({ message }, { status: 400 });
+    }
     return databaseErrorResponse(error, 'Nao foi possivel salvar o cadastro.');
   }
 }

@@ -31,43 +31,50 @@ export async function readSessionClock(sessionDate: string): Promise<SessionCloc
 export async function startTable(sessionDate: string): Promise<SessionClock> {
   await ensureSessionClockSchema();
   const pool = getDbPool();
-  const existing = await readSessionClock(sessionDate);
-  if (existing?.tableStartedAt && !existing.tableEndedAt) {
-    throw new Error('A mesa já está em andamento para esta data.');
-  }
-  if (existing?.tableStartedAt && existing.tableEndedAt) {
-    throw new Error('A mesa já foi encerrada. Reinicie apenas em um novo dia.');
-  }
 
   const result = await pool.query<SessionClockRow>(
     `INSERT INTO session_clocks (session_date, table_started_at, table_ended_at)
      VALUES ($1::date, NOW(), NULL)
      ON CONFLICT (session_date) DO UPDATE
        SET table_started_at = NOW(), table_ended_at = NULL, updated_at = NOW()
+     WHERE session_clocks.table_started_at IS NULL
      RETURNING session_date::text AS session_date, table_started_at, table_ended_at`,
     [sessionDate]
   );
+
+  if (result.rows.length === 0) {
+    const existing = await readSessionClock(sessionDate);
+    if (existing?.tableEndedAt) {
+      throw new Error('A mesa já foi encerrada. Reinicie apenas em um novo dia.');
+    }
+    throw new Error('A mesa já está em andamento para esta data.');
+  }
+
   return mapRow(result.rows[0]);
 }
 
 export async function endTable(sessionDate: string): Promise<SessionClock> {
   await ensureSessionClockSchema();
   const pool = getDbPool();
-  const existing = await readSessionClock(sessionDate);
-  if (!existing?.tableStartedAt) {
-    throw new Error('Inicie a mesa antes de encerrar.');
-  }
-  if (existing.tableEndedAt) {
-    throw new Error('A mesa já foi encerrada.');
-  }
 
   const result = await pool.query<SessionClockRow>(
     `UPDATE session_clocks
      SET table_ended_at = NOW(), updated_at = NOW()
      WHERE session_date = $1::date
+       AND table_started_at IS NOT NULL
+       AND table_ended_at IS NULL
      RETURNING session_date::text AS session_date, table_started_at, table_ended_at`,
     [sessionDate]
   );
+
+  if (result.rows.length === 0) {
+    const existing = await readSessionClock(sessionDate);
+    if (!existing?.tableStartedAt) {
+      throw new Error('Inicie a mesa antes de encerrar.');
+    }
+    throw new Error('A mesa já foi encerrada.');
+  }
+
   return mapRow(result.rows[0]);
 }
 

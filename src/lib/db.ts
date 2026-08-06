@@ -187,3 +187,12 @@ export function getDbPool() {
 
   return global.__pgPool;
 }
+
+/** Encerra o pool (scripts CLI / testes). Seguro chamar mais de uma vez. */
+export async function closeDbPool(): Promise<void> {
+  if (!global.__pgPool) return;
+  const pool = global.__pgPool;
+  global.__pgPool = undefined;
+  __poolConnectionKey = undefined;
+  await pool.end();
+}

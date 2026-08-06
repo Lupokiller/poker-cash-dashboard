@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:logic": "npx tsx ./scripts/audit-logic.ts",
+    "test:smoke": "npx tsx ./scripts/smoke-registration-flow.ts",
+    "test:db": "node ./scripts/audit-db-health.js",
     "extract:data": "powershell -ExecutionPolicy Bypass -File ./scripts/extract-poker-data.ps1 -WorkbookPath ./data/controle-poker.xlsx -OutputPath ./data/mockData.json",
     "db:push": "npx supabase db push",
     "db:link": "npx supabase link"

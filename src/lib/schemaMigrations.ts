@@ -155,11 +155,133 @@ export async function ensureBuyInLogsColumn(): Promise<void> {
   return buyInLogsColumnReady;
 }
 
+let registeredPlayersUniqueReady: Promise<void> | null = null;
+
+/** Consolida duplicatas (mesmo nome+data) e cria índice único. */
+export async function ensureRegisteredPlayersUniqueNameDate(): Promise<void> {
+  if (!registeredPlayersUniqueReady) {
+    registeredPlayersUniqueReady = (async () => {
+      const pool = getDbPool();
+      const duplicates = await pool.query<{
+        date: string;
+        name_key: string;
+        ids: string[];
+      }>(`
+        SELECT date::text AS date,
+               LOWER(TRIM(name)) AS name_key,
+               array_agg(id::text ORDER BY created_at ASC) AS ids
+        FROM registered_players
+        GROUP BY date, LOWER(TRIM(name))
+        HAVING COUNT(*) > 1
+      `);
+
+      for (const group of duplicates.rows) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          const rows = await client.query<{
+            id: string;
+            buy_in: number;
+            cash_out: number;
+            payment_status: string;
+            payment_method: string | null;
+            buy_in_logs: unknown;
+            created_at: string;
+            phone: string;
+          }>(
+            `SELECT id, buy_in, cash_out, payment_status, payment_method, buy_in_logs, created_at, phone
+             FROM registered_players
+             WHERE date = $1::date AND LOWER(TRIM(name)) = $2
+             ORDER BY created_at ASC
+             FOR UPDATE`,
+            [group.date, group.name_key]
+          );
+          if (rows.rows.length <= 1) {
+            await client.query('COMMIT');
+            continue;
+          }
+
+          const primary = rows.rows[0];
+          const logs: unknown[] = [];
+          let totalCashOut = 0;
+          let phone = '';
+          let paymentStatus = primary.payment_status;
+          let paymentMethod = primary.payment_method ?? 'pix';
+
+          for (const row of rows.rows) {
+            totalCashOut += Number(row.cash_out) || 0;
+            if (row.phone?.trim()) phone = row.phone.trim();
+            paymentStatus = row.payment_status;
+            paymentMethod = row.payment_method ?? paymentMethod;
+            const parsed = Array.isArray(row.buy_in_logs) ? row.buy_in_logs : [];
+            if (parsed.length > 0) {
+              logs.push(...parsed);
+            } else if (Number(row.buy_in) > 0) {
+              const created = row.created_at ? new Date(row.created_at) : new Date();
+              const hh = String(created.getHours()).padStart(2, '0');
+              const mm = String(created.getMinutes()).padStart(2, '0');
+              logs.push({
+                time: `${hh}:${mm}`,
+                amount: Number(row.buy_in),
+                paymentMethod: row.payment_method ?? 'pix',
+              });
+            }
+          }
+
+          const totalBuyIn = logs.reduce<number>((acc, item) => {
+            const amount = item && typeof item === 'object' ? Number((item as { amount?: unknown }).amount) : 0;
+            return acc + (Number.isFinite(amount) ? amount : 0);
+          }, 0);
+
+          await client.query(
+            `UPDATE registered_players
+             SET buy_in = $2,
+                 cash_out = $3,
+                 payment_status = $4,
+                 payment_method = $5,
+                 phone = CASE WHEN $6 <> '' THEN $6 ELSE phone END,
+                 buy_in_logs = $7::jsonb
+             WHERE id = $1`,
+            [
+              primary.id,
+              totalBuyIn,
+              totalCashOut,
+              paymentStatus,
+              paymentMethod,
+              phone,
+              JSON.stringify(logs),
+            ]
+          );
+
+          const duplicateIds = rows.rows.slice(1).map((row) => row.id);
+          await client.query(`DELETE FROM registered_players WHERE id = ANY($1::uuid[])`, [duplicateIds]);
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
+      }
+
+      await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS registered_players_date_name_uidx
+        ON registered_players (date, LOWER(TRIM(name)))
+      `);
+    })().catch((error) => {
+      registeredPlayersUniqueReady = null;
+      throw error;
+    });
+  }
+  return registeredPlayersUniqueReady;
+}
+
 /** Executa migrações idempotentes para cadastros. */
 export async function ensureRegisteredPlayerSchema(): Promise<void> {
   await ensurePaymentMethodColumns();
   await ensureBuyInLogsColumn();
   await ensurePlayerProfilesTable();
+  await ensureRegisteredPlayersUniqueNameDate();
 }
 
 let playerProfilesTableReady: Promise<void> | null = null;
