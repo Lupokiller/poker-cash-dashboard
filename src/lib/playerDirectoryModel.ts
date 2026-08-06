@@ -90,9 +90,13 @@ export interface PlayerDirectoryEntry {
   profile: ClubPlayerProfile;
   sessionsPlayed: number;
   lastPlayedDate: string | null;
+  /** Dias desde a última sessão (null se nunca jogou). */
+  daysSinceLastPlay: number | null;
   totalNet: number;
   totalBuyIn: number;
   avgBuyIn: number;
+  /** Valor estimado gerado para o clube (share do rake). */
+  totalRakeGenerated: number;
   profitableSessionRate: number;
   avgNetPerSession: number;
   activityBadge: PlayerActivityBadge;
@@ -212,6 +216,7 @@ function buildDirectoryEntry(
   const lastPlayedDate = sessionsPlayed > 0 ? slices[slices.length - 1].date : null;
   const totalNet = slices.reduce((acc, s) => acc + s.net, 0);
   const totalBuyIn = slices.reduce((acc, s) => acc + s.buyIn, 0);
+  const totalRakeGenerated = slices.reduce((acc, s) => acc + s.rakeGenerated, 0);
   const profitable = slices.filter((s) => s.net > 0).length;
   const activityBadge = resolvePlayerActivity(lastPlayedDate);
   const ranking = rankingByName.get(profile.nameKey);
@@ -220,9 +225,11 @@ function buildDirectoryEntry(
     profile,
     sessionsPlayed,
     lastPlayedDate,
+    daysSinceLastPlay: lastPlayedDate ? daysSince(lastPlayedDate) : null,
     totalNet,
     totalBuyIn,
     avgBuyIn: sessionsPlayed > 0 ? totalBuyIn / sessionsPlayed : 0,
+    totalRakeGenerated,
     profitableSessionRate: sessionsPlayed > 0 ? (profitable / sessionsPlayed) * 100 : 0,
     avgNetPerSession: sessionsPlayed > 0 ? totalNet / sessionsPlayed : 0,
     activityBadge,

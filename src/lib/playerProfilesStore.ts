@@ -1,6 +1,6 @@
 import { getDbPool } from './db';
 import { ensurePlayerProfilesTable } from './schemaMigrations';
-import { ClubPlayerProfile, ClubPlayerStatus } from './types';
+import { ClubPlayerProfile, ClubPlayerStatus, PlayerOrigin } from './types';
 
 interface PlayerProfileRow {
   name_key: string;
@@ -8,17 +8,42 @@ interface PlayerProfileRow {
   phone: string;
   notes: string;
   club_status: string;
+  tags: string[] | null;
+  origin: string | null;
   first_seen_at: string | null;
   updated_at: string;
 }
 
 const VALID_STATUSES: ClubPlayerStatus[] = ['ativo', 'vip', 'inativo', 'bloqueado'];
+const VALID_ORIGINS: PlayerOrigin[] = ['', 'indicacao', 'instagram', 'amigo', 'whatsapp', 'outro'];
 
 function normalizeClubStatus(value: string | null | undefined): ClubPlayerStatus {
   if (value && VALID_STATUSES.includes(value as ClubPlayerStatus)) {
     return value as ClubPlayerStatus;
   }
   return 'ativo';
+}
+
+function normalizeOrigin(value: string | null | undefined): PlayerOrigin {
+  if (value && VALID_ORIGINS.includes(value as PlayerOrigin)) {
+    return value as PlayerOrigin;
+  }
+  return '';
+}
+
+function normalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const tag = item.trim().toLowerCase();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+    if (tags.length >= 12) break;
+  }
+  return tags;
 }
 
 function mapRow(row: PlayerProfileRow): ClubPlayerProfile {
@@ -28,6 +53,8 @@ function mapRow(row: PlayerProfileRow): ClubPlayerProfile {
     phone: row.phone ?? '',
     notes: row.notes ?? '',
     clubStatus: normalizeClubStatus(row.club_status),
+    tags: normalizeTags(row.tags),
+    origin: normalizeOrigin(row.origin),
     firstSeenAt: row.first_seen_at,
     updatedAt: row.updated_at,
   };
@@ -37,7 +64,7 @@ export function playerNameKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
-const SELECT_PROFILE = `name_key, display_name, phone, notes, club_status, first_seen_at::text, updated_at`;
+const SELECT_PROFILE = `name_key, display_name, phone, notes, club_status, tags, origin, first_seen_at::text, updated_at`;
 
 /** Sincroniza diretório do clube com todos os jogadores já cadastrados em sessões. */
 export async function syncPlayerDirectoryFromRegistrations(): Promise<void> {
@@ -142,7 +169,13 @@ export async function getPlayerProfileByName(name: string): Promise<ClubPlayerPr
 
 export async function upsertClubPlayerProfile(
   name: string,
-  options: { phone?: string; notes?: string; clubStatus?: ClubPlayerStatus }
+  options: {
+    phone?: string;
+    notes?: string;
+    clubStatus?: ClubPlayerStatus;
+    tags?: string[];
+    origin?: PlayerOrigin;
+  }
 ): Promise<ClubPlayerProfile> {
   await ensurePlayerProfilesTable();
   const pool = getDbPool();
@@ -158,25 +191,40 @@ export async function upsertClubPlayerProfile(
   const phoneValue = phone || existing?.phone || '';
   const notesValue = options.notes !== undefined ? options.notes.trim() : (existing?.notes ?? '');
   const statusValue = options.clubStatus ?? existing?.clubStatus ?? 'ativo';
+  const tagsValue = options.tags !== undefined ? normalizeTags(options.tags) : (existing?.tags ?? []);
+  const originValue =
+    options.origin !== undefined ? normalizeOrigin(options.origin) : (existing?.origin ?? '');
+
+  if (options.origin !== undefined && !VALID_ORIGINS.includes(originValue)) {
+    throw new Error('Origem do jogador invalida.');
+  }
 
   const result = await pool.query<PlayerProfileRow>(
-    `INSERT INTO player_profiles (name_key, display_name, phone, notes, club_status)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO player_profiles (name_key, display_name, phone, notes, club_status, tags, origin)
+     VALUES ($1, $2, $3, $4, $5, $6::text[], $7)
      ON CONFLICT (name_key) DO UPDATE SET
        display_name = EXCLUDED.display_name,
        phone = CASE WHEN EXCLUDED.phone <> '' THEN EXCLUDED.phone ELSE player_profiles.phone END,
        notes = EXCLUDED.notes,
        club_status = EXCLUDED.club_status,
+       tags = EXCLUDED.tags,
+       origin = EXCLUDED.origin,
        updated_at = NOW()
      RETURNING ${SELECT_PROFILE}`,
-    [key, displayName, phoneValue, notesValue, statusValue]
+    [key, displayName, phoneValue, notesValue, statusValue, tagsValue, originValue]
   );
   return mapRow(result.rows[0]);
 }
 
 export async function updateClubPlayerProfile(
   nameKey: string,
-  options: { notes?: string; clubStatus?: ClubPlayerStatus; phone?: string }
+  options: {
+    notes?: string;
+    clubStatus?: ClubPlayerStatus;
+    phone?: string;
+    tags?: string[];
+    origin?: PlayerOrigin;
+  }
 ): Promise<ClubPlayerProfile | null> {
   const existing = await getPlayerProfileByNameKey(nameKey);
   if (!existing) {
@@ -191,6 +239,8 @@ export async function updateClubPlayerProfile(
     phone: options.phone,
     notes: options.notes !== undefined ? options.notes : existing.notes,
     clubStatus: options.clubStatus ?? existing.clubStatus,
+    tags: options.tags !== undefined ? options.tags : existing.tags,
+    origin: options.origin !== undefined ? options.origin : existing.origin,
   });
 }
 

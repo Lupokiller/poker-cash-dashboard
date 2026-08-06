@@ -47,6 +47,7 @@ const players: RegisteredPlayer[] = [
     notes: '',
     paymentMethod: 'pix',
     buyInLogs: [{ time: '20:00', amount: 100, paymentMethod: 'pix' }],
+    settlementMethod: null,
     createdAt: '2026-01-01T00:00:00Z',
   },
   {
@@ -61,6 +62,7 @@ const players: RegisteredPlayer[] = [
     notes: '',
     paymentMethod: 'dinheiro',
     buyInLogs: [{ time: '21:00', amount: 100, paymentMethod: 'dinheiro' }],
+    settlementMethod: null,
     createdAt: '2026-01-01T01:00:00Z',
   },
 ];

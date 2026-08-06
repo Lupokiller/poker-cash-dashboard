@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Copy, X } from 'lucide-react';
 import { currency } from '@/lib/data';
 import { AggregatedSessionPlayer } from '@/lib/playerSessionModel';
+import { SettlementMethod } from '@/lib/types';
 import { buildWhatsAppSessionReceiptLink } from '@/lib/whatsapp';
 import { nowHHMM } from '@/lib/time';
 
@@ -27,6 +28,7 @@ export function PayoutCloseModal({
   onConfirmed: (updated: AggregatedSessionPlayer) => void;
 }) {
   const [chipsInput, setChipsInput] = useState('');
+  const [settlementMethod, setSettlementMethod] = useState<SettlementMethod>('pix');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -70,6 +72,7 @@ export function PayoutCloseModal({
           name: player.name,
           date: player.sessionDate,
           cashOut,
+          settlementMethod: net === 0 ? null : settlementMethod,
         }),
       });
       const payload: unknown = await response.json().catch(() => null);
@@ -185,6 +188,34 @@ export function PayoutCloseModal({
 
           {error && <p className='text-sm text-rose-300'>{error}</p>}
 
+          {net !== 0 && !confirmed && (
+            <div className='space-y-2'>
+              <p className='text-xs text-zinc-500'>
+                {net < 0
+                  ? `Quitar: jogador paga ${currency(Math.abs(net))}`
+                  : `Quitar: casa paga ${currency(net)}`}
+              </p>
+              <div className='inline-flex w-full rounded-xl border border-zinc-800 bg-zinc-950/50 p-0.5'>
+                {(['pix', 'dinheiro'] as SettlementMethod[]).map((method) => (
+                  <button
+                    key={method}
+                    type='button'
+                    onClick={() => setSettlementMethod(method)}
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                      settlementMethod === method
+                        ? method === 'pix'
+                          ? 'bg-sky-500/20 text-sky-200'
+                          : 'bg-emerald-500/20 text-emerald-200'
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    {method === 'pix' ? 'Pix' : 'Dinheiro'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className='flex flex-wrap gap-2'>
             <button
               type='button'
@@ -202,7 +233,7 @@ export function PayoutCloseModal({
                 onClick={() => void confirmPayout()}
                 className='inline-flex flex-1 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-600/90 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60'
               >
-                {saving ? 'Salvando…' : 'Confirmar e Quitado'}
+                {saving ? 'Salvando…' : 'Quitar e confirmar'}
               </button>
             ) : (
               whatsappHref && (

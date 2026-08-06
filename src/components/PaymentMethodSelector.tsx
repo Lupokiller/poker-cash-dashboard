@@ -2,20 +2,23 @@
 
 import { PaymentMethod } from '@/lib/types';
 
-const options: { value: PaymentMethod; label: string; activeClass: string }[] = [
+const options: { value: PaymentMethod; label: string; hint: string; activeClass: string }[] = [
   {
     value: 'pix',
     label: 'Pix',
+    hint: 'Já pagou',
     activeClass: 'border-sky-400/60 bg-sky-500/20 text-sky-200 shadow-sm shadow-sky-500/10',
   },
   {
     value: 'dinheiro',
     label: 'Dinheiro',
+    hint: 'Já pagou',
     activeClass: 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm shadow-emerald-500/10',
   },
   {
     value: 'fiado',
-    label: 'Fiado',
+    label: 'Crédito',
+    hint: 'Paga no acerto',
     activeClass: 'border-violet-400/60 bg-violet-500/20 text-violet-200 shadow-sm shadow-violet-500/10',
   },
 ];
@@ -33,7 +36,7 @@ export function PaymentMethodSelector({
     <div
       className='inline-flex w-full rounded-xl border border-zinc-800 bg-zinc-950/50 p-0.5'
       role='group'
-      aria-label='Meio de pagamento do buy-in'
+      aria-label='Como entrou o buy-in'
     >
       {options.map((opt) => (
         <button
@@ -41,13 +44,14 @@ export function PaymentMethodSelector({
           type='button'
           disabled={disabled}
           onClick={() => onChange(opt.value)}
-          className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex flex-1 flex-col items-center rounded-lg px-2 py-1.5 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
             value === opt.value
               ? opt.activeClass
               : 'border border-transparent text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          {opt.label}
+          <span className='text-xs font-semibold'>{opt.label}</span>
+          <span className='text-[9px] opacity-70'>{opt.hint}</span>
         </button>
       ))}
     </div>
@@ -75,7 +79,7 @@ export function PaymentMethodBadge({
       : method === 'dinheiro'
         ? 'Dinheiro'
         : method === 'fiado'
-          ? 'Fiado'
+          ? 'Crédito'
           : 'Misto';
 
   return (

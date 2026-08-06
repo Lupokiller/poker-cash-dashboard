@@ -7,7 +7,7 @@ import {
 } from '@/lib/playerProfilesStore';
 import { readPokerSessions } from '@/lib/sessionsStore';
 import { requireSession } from '@/lib/requireAuth';
-import { ClubPlayerStatus } from '@/lib/types';
+import { ClubPlayerStatus, PlayerOrigin } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -55,9 +55,21 @@ export async function PATCH(
     return NextResponse.json({ message: 'Jogador invalido.' }, { status: 400 });
   }
 
-  let body: { notes?: unknown; clubStatus?: unknown; phone?: unknown };
+  let body: {
+    notes?: unknown;
+    clubStatus?: unknown;
+    phone?: unknown;
+    tags?: unknown;
+    origin?: unknown;
+  };
   try {
-    body = (await request.json()) as { notes?: unknown; clubStatus?: unknown; phone?: unknown };
+    body = (await request.json()) as {
+      notes?: unknown;
+      clubStatus?: unknown;
+      phone?: unknown;
+      tags?: unknown;
+      origin?: unknown;
+    };
   } catch {
     return NextResponse.json({ message: 'JSON invalido.' }, { status: 400 });
   }
@@ -66,10 +78,14 @@ export async function PATCH(
   const clubStatus =
     typeof body.clubStatus === 'string' ? (body.clubStatus as ClubPlayerStatus) : undefined;
   const phone = typeof body.phone === 'string' ? body.phone.trim() : undefined;
+  const tags = Array.isArray(body.tags)
+    ? body.tags.filter((t): t is string => typeof t === 'string')
+    : undefined;
+  const origin = typeof body.origin === 'string' ? (body.origin as PlayerOrigin) : undefined;
 
   try {
     await requireSession();
-    const updated = await updateClubPlayerProfile(key, { notes, clubStatus, phone });
+    const updated = await updateClubPlayerProfile(key, { notes, clubStatus, phone, tags, origin });
     if (!updated) {
       return NextResponse.json({ message: 'Jogador nao encontrado.' }, { status: 404 });
     }

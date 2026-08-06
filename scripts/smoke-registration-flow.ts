@@ -36,15 +36,16 @@ async function main() {
   }
   assert(rejected, 'zero buy-in should be rejected');
 
-  const cashed = await updateRegisteredPlayerCashAndStatus(first.id, 180, 'quitado');
+  const cashed = await updateRegisteredPlayerCashAndStatus(first.id, 180, 'quitado', 'pix');
   assert(cashed?.cashOut === 180, 'cash-out should be 180');
   assert(cashed?.paymentStatus === 'quitado', 'should be quitado');
+  assert(cashed?.settlementMethod === 'pix', 'settlement should be pix');
 
   const rebuy = await registerOrAddBuyIn({
     name: TEST_NAME,
     date,
     buyIn: 50,
-    paymentMethod: 'dinheiro',
+    paymentMethod: 'fiado',
   });
   assert(rebuy.buyIn === 150, `buyIn after rebuy expected 150 got ${rebuy.buyIn}`);
   assert(rebuy.cashOut === 0, `cashOut after rebuy expected 0 got ${rebuy.cashOut}`);
@@ -52,9 +53,10 @@ async function main() {
     rebuy.paymentStatus === 'a receber',
     `status after rebuy expected a receber got ${rebuy.paymentStatus}`
   );
+  assert(rebuy.settlementMethod === null, 'rebuy clears settlement');
   assert(rebuy.buyInLogs.length === 2, `expected 2 entradas got ${rebuy.buyInLogs.length}`);
 
-  const paid = await finalizePlayerPayout(TEST_NAME, date, 140);
+  const paid = await finalizePlayerPayout(TEST_NAME, date, 140, 'dinheiro');
   assert(paid?.cashOut === 140, 'payout cashOut');
   assert(paid?.paymentStatus === 'quitado', 'payout quitado');
   assert(paid?.buyIn === 150, 'payout keeps buyIn');

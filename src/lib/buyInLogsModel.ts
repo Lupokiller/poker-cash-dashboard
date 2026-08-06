@@ -195,6 +195,7 @@ export function unifyRegisteredPlayersForSession(
       cashOut: totalCashOut,
       net: totalCashOut - totalBuyIn,
       buyInLogs: mergedLogs,
+      settlementMethod: latest.settlementMethod ?? null,
     };
   });
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { KpiCard } from '@/components/KpiCard';
 import { TableClockPanel } from '@/components/TableClockPanel';
-import { RakeEvolutionChart } from '@/components/Charts';
+import { RakeEvolutionChart, TableSizeRakeScatter } from '@/components/Charts';
 import { currency, prettyDate } from '@/lib/data';
 import { computeRakeBillingMetrics, sessionRakeBruto, type SessionRakeRow } from '@/lib/rakeModel';
 import { todayLocalISODate } from '@/lib/time';
@@ -189,6 +189,36 @@ export function RakeBillingTab({
     return withRate.reduce((acc, r) => acc + (r.rakePerHour ?? 0), 0) / withRate.length;
   }, [metrics.rows]);
 
+  const tableSizeRadar = useMemo(
+    () =>
+      metrics.rows
+        .filter((row) => row.rakePerHour != null && row.playersCount > 0)
+        .map((row) => ({
+          date: row.date,
+          playersCount: row.playersCount,
+          rakePerHour: row.rakePerHour as number,
+          rakeBruto: row.rakeBruto,
+        })),
+    [metrics.rows]
+  );
+
+  const bestTableSize = useMemo(() => {
+    if (tableSizeRadar.length === 0) return null;
+    const bySize = new Map<number, { sum: number; count: number }>();
+    for (const point of tableSizeRadar) {
+      const cur = bySize.get(point.playersCount) ?? { sum: 0, count: 0 };
+      cur.sum += point.rakePerHour;
+      cur.count += 1;
+      bySize.set(point.playersCount, cur);
+    }
+    let best: { size: number; avg: number } | null = null;
+    for (const [size, agg] of bySize) {
+      const avg = agg.sum / agg.count;
+      if (!best || avg > best.avg) best = { size, avg };
+    }
+    return best;
+  }, [tableSizeRadar]);
+
   return (
     <section className='space-y-4'>
       <div className='glass-card space-y-3 p-4'>
@@ -315,6 +345,31 @@ export function RakeBillingTab({
       </div>
 
       {metrics.chartData.length > 0 && <RakeEvolutionChart data={metrics.chartData} />}
+
+      <div className='grid gap-4 lg:grid-cols-2'>
+        <TableSizeRakeScatter data={tableSizeRadar} />
+        <div className='glass-card flex flex-col justify-center p-5'>
+          <h3 className='text-sm font-semibold text-zinc-100'>Leitura rápida da mesa</h3>
+          <p className='mt-2 text-sm text-zinc-500'>
+            Use noites com cronômetro iniciado e encerrado. O gráfico mostra qual tamanho de mesa
+            rende mais rake por hora.
+          </p>
+          {bestTableSize ? (
+            <p className='mt-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-sm text-sky-100'>
+              Melhor média até agora:{' '}
+              <span className='font-semibold'>{bestTableSize.size} jogadores</span> →{' '}
+              {currency(bestTableSize.avg)}/h
+            </p>
+          ) : (
+            <p className='mt-4 text-sm text-zinc-600'>
+              Ainda sem dados de duração. Marque início/fim da mesa nas próximas noites.
+            </p>
+          )}
+          <p className='mt-3 text-xs text-zinc-600'>
+            Pontos com cronômetro: {tableSizeRadar.length} de {metrics.rows.length} sessões.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

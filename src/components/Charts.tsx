@@ -14,6 +14,9 @@ import {
   PieChart,
   Pie,
   Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from 'recharts';
 import { currency } from '@/lib/data';
 
@@ -168,6 +171,84 @@ export function DistributionPie({ data }: { data: { name: string; value: number 
               labelStyle={{ color: '#e4e4e7' }}
             />
           </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+/** Rake/hora × tamanho da mesa — pontos = noites com cronômetro. */
+export function TableSizeRakeScatter({
+  data,
+}: {
+  data: { playersCount: number; rakePerHour: number; date: string; rakeBruto: number }[];
+}) {
+  if (data.length === 0) {
+    return (
+      <div className='glass-card flex h-80 flex-col items-center justify-center p-4 text-center'>
+        <h3 className='text-sm font-semibold text-zinc-200'>Radar rake/hora × mesa</h3>
+        <p className='mt-2 max-w-sm text-sm text-zinc-500'>
+          Inicie e encerre o cronômetro nas noites para ver onde a mesa rende mais por hora.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className='glass-card flex h-80 flex-col p-4'>
+      <h3 className='mb-1 text-sm font-semibold text-zinc-200'>Radar rake/hora × tamanho da mesa</h3>
+      <p className='mb-3 text-xs text-zinc-500'>
+        Cada ponto é uma noite. Ideal: mais rake/hora com o tamanho certo de mesa.
+      </p>
+      <div className='h-[240px] w-full min-w-0'>
+        <ResponsiveContainer width='100%' height='100%'>
+          <ScatterChart margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+            <CartesianGrid strokeDasharray='3 3' stroke={gridStroke} />
+            <XAxis
+              type='number'
+              dataKey='playersCount'
+              name='Jogadores'
+              stroke={axisStroke}
+              tick={{ fill: '#a1a1aa', fontSize: 11 }}
+              allowDecimals={false}
+              label={{ value: 'Jogadores', position: 'insideBottom', offset: -2, fill: '#71717a', fontSize: 10 }}
+            />
+            <YAxis
+              type='number'
+              dataKey='rakePerHour'
+              name='Rake/h'
+              stroke={axisStroke}
+              tick={{ fill: '#a1a1aa', fontSize: 11 }}
+              tickFormatter={(v) =>
+                new Intl.NumberFormat('pt-BR', {
+                  notation: 'compact',
+                  style: 'currency',
+                  currency: 'BRL',
+                  maximumFractionDigits: 0,
+                }).format(Number(v))
+              }
+            />
+            <ZAxis type='number' dataKey='rakeBruto' range={[60, 280]} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              cursor={{ strokeDasharray: '3 3' }}
+              formatter={(value, name) => {
+                if (name === 'rakePerHour' || name === 'Rake/h') {
+                  return [currency(Number(value ?? 0)) + '/h', 'Rake/hora'];
+                }
+                if (name === 'playersCount' || name === 'Jogadores') {
+                  return [String(value), 'Jogadores'];
+                }
+                return [currency(Number(value ?? 0)), String(name)];
+              }}
+              labelFormatter={(_, payload) => {
+                const item = payload?.[0]?.payload as { date?: string } | undefined;
+                return item?.date ? `Sessão ${item.date}` : '';
+              }}
+              labelStyle={{ color: '#e4e4e7' }}
+            />
+            <Scatter data={data} fill='#38bdf8' fillOpacity={0.85} />
+          </ScatterChart>
         </ResponsiveContainer>
       </div>
     </div>

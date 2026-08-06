@@ -20,8 +20,10 @@ import { PlayerGamificationBadges } from '@/components/PlayerGamificationBadge';
 import { PlayerStatusBadge } from '@/components/PlayerStatusBadge';
 import { currency, prettyDate } from '@/lib/data';
 import { PlayerDetail } from '@/lib/playerDirectoryModel';
-import { ClubPlayerStatus } from '@/lib/types';
+import { ClubPlayerStatus, PLAYER_ORIGIN_OPTIONS, PlayerOrigin } from '@/lib/types';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
+
+const TAG_SUGGESTIONS = ['agressivo', 'regular', 'plo', 'cash', 'vip-mesa', 'noite', 'tarde'];
 
 const STATUS_OPTIONS: { value: ClubPlayerStatus; label: string; description: string }[] = [
   { value: 'ativo', label: 'Ativo', description: 'Participação normal no clube' },
@@ -93,11 +95,22 @@ export function PlayerDetailPanel({
   const [error, setError] = useState('');
   const [notes, setNotes] = useState('');
   const [clubStatus, setClubStatus] = useState<ClubPlayerStatus>('ativo');
+  const [tagsInput, setTagsInput] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [origin, setOrigin] = useState<PlayerOrigin>('');
 
   const isDirty = useMemo(() => {
     if (!detail) return false;
-    return notes !== detail.profile.notes || clubStatus !== detail.profile.clubStatus;
-  }, [detail, notes, clubStatus]);
+    const tagsChanged =
+      tags.length !== detail.profile.tags.length ||
+      tags.some((t, i) => t !== detail.profile.tags[i]);
+    return (
+      notes !== detail.profile.notes ||
+      clubStatus !== detail.profile.clubStatus ||
+      origin !== detail.profile.origin ||
+      tagsChanged
+    );
+  }, [detail, notes, clubStatus, tags, origin]);
 
   useEffect(() => {
     if (!nameKey) {
@@ -124,6 +137,9 @@ export function PlayerDetailPanel({
           setDetail(data);
           setNotes(data.profile.notes);
           setClubStatus(data.profile.clubStatus);
+          setTags(data.profile.tags ?? []);
+          setOrigin(data.profile.origin ?? '');
+          setTagsInput('');
         }
       } catch (caught) {
         if (!cancelled) {
@@ -149,7 +165,7 @@ export function PlayerDetailPanel({
       const response = await fetch(`/api/players/${encodeURIComponent(nameKey)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes, clubStatus }),
+        body: JSON.stringify({ notes, clubStatus, tags, origin }),
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
@@ -159,7 +175,10 @@ export function PlayerDetailPanel({
             : 'Nao foi possivel salvar.'
         );
       }
-      setDetail(body as PlayerDetail);
+      const data = body as PlayerDetail;
+      setDetail(data);
+      setTags(data.profile.tags ?? []);
+      setOrigin(data.profile.origin ?? '');
       onUpdated?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Erro ao salvar.');
@@ -263,8 +282,10 @@ export function PlayerDetailPanel({
                   {/* Stats */}
                   <section>
                     <SectionTitle icon={BarChart3} title='Desempenho' subtitle='Totais em sessões finalizadas' />
-                    <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-4'>
+                    <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-3'>
                       <StatCard label='Sessões' value={String(detail.sessionsPlayed)} />
+                      <StatCard label='LTV clube' value={currency(detail.totalRakeGenerated)} />
+                      <StatCard label='Buy-in total' value={currency(detail.totalBuyIn)} />
                       <StatCard
                         label='Resultado'
                         value={currency(detail.totalNet)}
@@ -318,6 +339,70 @@ export function PlayerDetailPanel({
                           O status &quot;Sumido&quot; é automático após 30 dias sem jogar (quando o status manual é Ativo).
                         </p>
                       </label>
+
+                      <label className='block'>
+                        <span className='mb-1.5 block text-xs font-medium text-zinc-400'>Origem</span>
+                        <select
+                          value={origin}
+                          onChange={(e) => setOrigin(e.target.value as PlayerOrigin)}
+                          className='w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20'
+                        >
+                          {PLAYER_ORIGIN_OPTIONS.map((opt) => (
+                            <option key={opt.value || 'none'} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div>
+                        <span className='mb-1.5 block text-xs font-medium text-zinc-400'>Tags</span>
+                        <div className='mb-2 flex flex-wrap gap-1.5'>
+                          {tags.map((tag) => (
+                            <button
+                              key={tag}
+                              type='button'
+                              onClick={() => setTags((current) => current.filter((t) => t !== tag))}
+                              className='rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200'
+                              title='Remover tag'
+                            >
+                              {tag} ×
+                            </button>
+                          ))}
+                          {tags.length === 0 && (
+                            <span className='text-[11px] text-zinc-600'>Nenhuma tag ainda</span>
+                          )}
+                        </div>
+                        <div className='flex gap-2'>
+                          <input
+                            value={tagsInput}
+                            onChange={(e) => setTagsInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter') return;
+                              e.preventDefault();
+                              const next = tagsInput.trim().toLowerCase();
+                              if (!next || tags.includes(next)) return;
+                              setTags((current) => [...current, next].slice(0, 12));
+                              setTagsInput('');
+                            }}
+                            placeholder='Digite e Enter'
+                            className='flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/40'
+                          />
+                        </div>
+                        <div className='mt-2 flex flex-wrap gap-1'>
+                          {TAG_SUGGESTIONS.filter((t) => !tags.includes(t)).map((tag) => (
+                            <button
+                              key={tag}
+                              type='button'
+                              onClick={() => setTags((current) => [...current, tag].slice(0, 12))}
+                              className='rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-500 transition hover:border-zinc-600 hover:text-zinc-300'
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <label className='block'>
                         <span className='mb-1.5 block text-xs font-medium text-zinc-400'>Notas internas</span>
                         <textarea

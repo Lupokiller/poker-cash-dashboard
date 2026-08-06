@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { LogOut } from 'lucide-react';
-import { RegisteredPlayer, PaymentStatus } from '@/lib/types';
+import { RegisteredPlayer, SettlementMethod } from '@/lib/types';
 import { currency } from '@/lib/data';
-import { netFromCashOut, paymentStatusFromNet } from '@/lib/paymentStatusModel';
+import { netFromCashOut } from '@/lib/paymentStatusModel';
 
 function apiMessageFromBody(body: unknown, fallback: string): string {
   if (body && typeof body === 'object' && 'message' in body) {
@@ -13,12 +13,6 @@ function apiMessageFromBody(body: unknown, fallback: string): string {
   }
   return fallback;
 }
-
-const STATUS_LABEL: Record<PaymentStatus, string> = {
-  'a pagar': 'A pagar (casa paga o jogador)',
-  'a receber': 'A receber (jogador deve à casa)',
-  quitado: 'Quitado',
-};
 
 export function QuickCashOutPopover({
   player,
@@ -31,13 +25,15 @@ export function QuickCashOutPopover({
 }) {
   const [open, setOpen] = useState(false);
   const [cashOutInput, setCashOutInput] = useState(String(player.cashOut || ''));
+  const [settlementMethod, setSettlementMethod] = useState<SettlementMethod>('pix');
   const [saving, setSaving] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setCashOutInput(player.cashOut > 0 ? String(player.cashOut) : '');
-  }, [open, player.cashOut]);
+    setSettlementMethod(player.settlementMethod ?? 'pix');
+  }, [open, player.cashOut, player.settlementMethod]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,11 +47,13 @@ export function QuickCashOutPopover({
   }, [open]);
 
   const cashOutDraft = Number(cashOutInput);
-  const cashOut = Number.isFinite(cashOutDraft) && cashOutDraft >= 0 ? cashOutDraft : 0;
-  const previewNet = netFromCashOut(cashOut, player.buyIn);
-  const previewStatus = paymentStatusFromNet(previewNet);
+  const previewNet =
+    Number.isFinite(cashOutDraft) && cashOutDraft >= 0
+      ? netFromCashOut(cashOutDraft, player.buyIn)
+      : 0;
+  const settleAmount = Math.abs(previewNet);
 
-  const handleConfirm = async () => {
+  const handleQuitar = async () => {
     if (cashOutInput.trim() === '' || !Number.isFinite(cashOutDraft) || cashOutDraft < 0) {
       onError('Informe um valor de cash-out válido.');
       return;
@@ -64,21 +62,24 @@ export function QuickCashOutPopover({
     setSaving(true);
     onError('');
     try {
-      const paymentStatus = paymentStatusFromNet(netFromCashOut(cashOutDraft, player.buyIn));
       const response = await fetch(`/api/registered-players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cashOut: cashOutDraft, paymentStatus }),
+        body: JSON.stringify({
+          cashOut: cashOutDraft,
+          paymentStatus: 'quitado',
+          settlementMethod: previewNet === 0 ? null : settlementMethod,
+        }),
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        onError(apiMessageFromBody(body, 'Nao foi possivel registrar o cash-out.'));
+        onError(apiMessageFromBody(body, 'Nao foi possivel quitar.'));
         return;
       }
       onUpdated(body as RegisteredPlayer);
       setOpen(false);
     } catch {
-      onError('Nao foi possivel registrar o cash-out.');
+      onError('Nao foi possivel quitar.');
     } finally {
       setSaving(false);
     }
@@ -89,7 +90,7 @@ export function QuickCashOutPopover({
       <button
         type='button'
         onClick={() => setOpen((current) => !current)}
-        title='Cash-out rápido'
+        title='Cash-out e quitar'
         className='inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20'
       >
         <LogOut className='h-3.5 w-3.5' />
@@ -97,15 +98,15 @@ export function QuickCashOutPopover({
       </button>
 
       {open && (
-        <div className='absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-zinc-700/90 bg-zinc-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-md'>
-          <p className='text-xs font-semibold uppercase tracking-wide text-zinc-500'>Fechar conta</p>
+        <div className='absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-zinc-700/90 bg-zinc-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-md'>
+          <p className='text-xs font-semibold uppercase tracking-wide text-zinc-500'>Cash-out</p>
           <p className='mt-0.5 truncate text-sm font-medium text-zinc-100'>{player.name}</p>
           <p className='mt-1 text-xs text-zinc-500'>
-            Buy-ins na sessão: <span className='font-semibold text-zinc-300'>{currency(player.buyIn)}</span>
+            Buy-ins: <span className='font-semibold text-zinc-300'>{currency(player.buyIn)}</span>
           </p>
 
           <label className='mt-3 flex flex-col gap-1 text-xs text-zinc-500'>
-            Fichas devolvidas (cash-out)
+            Fichas devolvidas
             <input
               type='number'
               min='0'
@@ -130,27 +131,55 @@ export function QuickCashOutPopover({
               </span>
             </div>
             <div className='mt-1 flex justify-between gap-2 text-zinc-500'>
-              <span>Status</span>
-              <span className='font-medium text-zinc-300'>{STATUS_LABEL[previewStatus]}</span>
+              <span>Status após quitar</span>
+              <span className='font-semibold text-emerald-300'>quitado</span>
             </div>
           </div>
 
-          <div className='mt-3 flex justify-end gap-2'>
+          <div className='mt-3 space-y-2'>
+            <p className='text-[11px] text-zinc-500'>
+              {previewNet === 0
+                ? 'Como foi o acerto?'
+                : previewNet < 0
+                  ? `Como o jogador pagou ${currency(settleAmount)}?`
+                  : `Como a casa pagou ${currency(settleAmount)}?`}
+            </p>
+            <div className='inline-flex w-full rounded-lg border border-zinc-800 bg-zinc-950/50 p-0.5'>
+              {(['pix', 'dinheiro'] as SettlementMethod[]).map((method) => (
+                <button
+                  key={method}
+                  type='button'
+                  onClick={() => setSettlementMethod(method)}
+                  className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${
+                    settlementMethod === method
+                      ? method === 'pix'
+                        ? 'bg-sky-500/20 text-sky-200'
+                        : 'bg-emerald-500/20 text-emerald-200'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {method === 'pix' ? 'Pix' : 'Dinheiro'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className='mt-3 flex gap-2'>
             <button
               type='button'
               disabled={saving}
               onClick={() => setOpen(false)}
-              className='rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-800/80'
+              className='flex-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-800/80'
             >
               Cancelar
             </button>
             <button
               type='button'
               disabled={saving}
-              onClick={() => void handleConfirm()}
-              className='rounded-lg border border-emerald-500/40 bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50'
+              onClick={() => void handleQuitar()}
+              className='flex-[1.4] rounded-lg border border-emerald-500/40 bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50'
             >
-              {saving ? 'Salvando…' : 'Confirmar saída'}
+              {saving ? 'Salvando…' : 'Quitar'}
             </button>
           </div>
         </div>

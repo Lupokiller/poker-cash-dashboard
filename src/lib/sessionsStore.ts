@@ -1,6 +1,6 @@
 import { getDbPool } from './db';
-import { normalizePaymentMethod } from './cashTotalsModel';
-import { cashTotalsFromBuyInLogs, parseBuyInLogs, resolveBuyInLogs } from './buyInLogsModel';
+import { normalizePaymentMethod, normalizeSettlementMethod, sumRegisteredPlayerCashTotals } from './cashTotalsModel';
+import { parseBuyInLogs, resolveBuyInLogs } from './buyInLogsModel';
 import { ensureSessionSchema, ensureRegisteredPlayerSchema } from './schemaMigrations';
 import { readSessionClock } from './sessionClockStore';
 import { PaymentMethod, PaymentStatus, Session, SessionPlayer } from './types';
@@ -143,11 +143,12 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
     notes: string;
     payment_method: string | null;
     buy_in_logs: unknown;
+    settlement_method: string | null;
     created_at: string;
   }
 
   const result = await pool.query<RegRow>(
-    `SELECT id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, buy_in_logs, created_at
+    `SELECT id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, buy_in_logs, settlement_method, created_at
      FROM registered_players WHERE date = $1::date ORDER BY created_at ASC`,
     [sessionDate]
   );
@@ -164,12 +165,11 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
     notes: row.notes,
     paymentMethod: normalizePaymentMethod(row.payment_method) as PaymentMethod,
     buyInLogs: parseBuyInLogs(row.buy_in_logs),
+    settlementMethod: normalizeSettlementMethod(row.settlement_method),
     createdAt: row.created_at,
   }));
 
-  let totalPix = 0;
-  let totalDinheiro = 0;
-  let totalFiado = 0;
+  const { totalPix, totalDinheiro, totalFiado } = sumRegisteredPlayerCashTotals(rows);
 
   const byKey = new Map<
     string,
@@ -186,19 +186,6 @@ export async function aggregateRegisteredPlayersForDate(sessionDate: string): Pr
 
   for (const p of rows) {
     const logs = resolveBuyInLogs(p);
-    const cashPart = logs.length > 0 ? cashTotalsFromBuyInLogs(logs) : null;
-    if (cashPart) {
-      totalPix += cashPart.totalPix;
-      totalDinheiro += cashPart.totalDinheiro;
-      totalFiado += cashPart.totalFiado;
-    } else if (p.paymentMethod === 'dinheiro') {
-      totalDinheiro += p.buyIn;
-    } else if (p.paymentMethod === 'fiado') {
-      totalFiado += p.buyIn;
-    } else {
-      totalPix += p.buyIn;
-    }
-
     const key = p.name.trim().toLowerCase();
     const cur = byKey.get(key);
     const entryCount = logs.length > 0 ? logs.length : 1;

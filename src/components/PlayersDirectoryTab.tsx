@@ -11,6 +11,7 @@ import {
   UserCheck,
   UserX,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel';
 import { PlayerDirectoryAvatar } from '@/components/PlayerDirectoryAvatar';
@@ -21,7 +22,7 @@ import { PlayerDirectoryEntry, PlayerDisplayStatus } from '@/lib/playerDirectory
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
 type StatusFilter = 'all' | PlayerDisplayStatus;
-type SortKey = 'name' | 'sessions' | 'lastPlayed' | 'net';
+type SortKey = 'name' | 'sessions' | 'lastPlayed' | 'net' | 'ltv';
 type SortDir = 'asc' | 'desc';
 
 const STATUS_FILTERS: { id: StatusFilter; label: string; activeClass: string }[] = [
@@ -152,7 +153,13 @@ export function PlayersDirectoryTab() {
   }, [entries]);
 
   const summary = useMemo(() => {
-    return { withSessions: entries.filter((e) => e.sessionsPlayed > 0).length };
+    const withSessions = entries.filter((e) => e.sessionsPlayed > 0).length;
+    const totalLtv = entries.reduce((acc, e) => acc + e.totalRakeGenerated, 0);
+    const sumidosAtRisk = [...entries]
+      .filter((e) => e.activityBadge === 'sumido' && e.totalRakeGenerated > 0)
+      .sort((a, b) => b.totalRakeGenerated - a.totalRakeGenerated)
+      .slice(0, 5);
+    return { withSessions, totalLtv, sumidosAtRisk };
   }, [entries]);
 
   const handleSort = (key: SortKey) => {
@@ -172,9 +179,13 @@ export function PlayersDirectoryTab() {
       }
       if (!q) return true;
       const phone = entry.profile.phone.replace(/\D/g, '');
+      const tags = entry.profile.tags.join(' ');
+      const origin = entry.profile.origin;
       return (
         entry.profile.displayName.toLowerCase().includes(q) ||
-        phone.includes(q.replace(/\D/g, ''))
+        phone.includes(q.replace(/\D/g, '')) ||
+        tags.includes(q) ||
+        origin.includes(q)
       );
     });
 
@@ -188,6 +199,9 @@ export function PlayersDirectoryTab() {
       }
       if (sortKey === 'net') {
         return dir * (a.totalNet - b.totalNet);
+      }
+      if (sortKey === 'ltv') {
+        return dir * (a.totalRakeGenerated - b.totalRakeGenerated);
       }
       const dateA = a.lastPlayedDate ?? '';
       const dateB = b.lastPlayedDate ?? '';
@@ -228,7 +242,7 @@ export function PlayersDirectoryTab() {
       </div>
 
       {/* KPIs */}
-      <div className='grid gap-3 sm:grid-cols-3'>
+      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
         <DirectoryKpi
           label='Cadastrados'
           value={entries.length}
@@ -250,7 +264,55 @@ export function PlayersDirectoryTab() {
           icon={UserX}
           accent='border-zinc-700/50 from-zinc-800/30 to-zinc-950/40'
         />
+        <DirectoryKpi
+          label='LTV do clube'
+          value={currency(summary.totalLtv)}
+          sub='Rake estimado gerado'
+          icon={Wallet}
+          accent='border-sky-500/20 from-sky-500/10 to-zinc-950/40'
+        />
       </div>
+
+      {summary.sumidosAtRisk.length > 0 && (
+        <div className='glass-card border-amber-500/20 p-4'>
+          <div className='mb-3 flex items-center justify-between gap-2'>
+            <div>
+              <h3 className='text-sm font-semibold text-zinc-100'>Sumidos de alto valor</h3>
+              <p className='text-xs text-zinc-500'>
+                Jogaram bem para o clube e sumiram — priorize o retorno.
+              </p>
+            </div>
+            <button
+              type='button'
+              onClick={() => setStatusFilter('sumido')}
+              className='rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-zinc-800'
+            >
+              Ver todos sumidos
+            </button>
+          </div>
+          <ul className='grid gap-2 sm:grid-cols-2 lg:grid-cols-5'>
+            {summary.sumidosAtRisk.map((entry) => (
+              <li key={entry.profile.nameKey}>
+                <button
+                  type='button'
+                  onClick={() => setSelectedNameKey(entry.profile.nameKey)}
+                  className='w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-left transition hover:border-amber-500/30 hover:bg-amber-500/5'
+                >
+                  <p className='truncate text-sm font-medium text-zinc-100'>
+                    {entry.profile.displayName}
+                  </p>
+                  <p className='mt-0.5 text-[11px] text-zinc-500'>
+                    {entry.daysSinceLastPlay != null
+                      ? `${entry.daysSinceLastPlay}d fora`
+                      : 'Sem sessões'}{' '}
+                    · LTV {currency(entry.totalRakeGenerated)}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Toolbar + table */}
       <div className='glass-card overflow-hidden'>
@@ -267,7 +329,7 @@ export function PlayersDirectoryTab() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder='Buscar por nome ou telefone...'
+                placeholder='Buscar nome, telefone, tag ou origem...'
                 className='w-full rounded-xl border border-zinc-800 bg-zinc-950/60 py-2.5 pl-10 pr-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20'
               />
             </div>
@@ -338,6 +400,16 @@ export function PlayersDirectoryTab() {
                 </th>
                 <th className='px-4 py-3 text-right'>
                   <SortHeader
+                    label='LTV'
+                    sortKey='ltv'
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    align='right'
+                  />
+                </th>
+                <th className='px-4 py-3 text-right'>
+                  <SortHeader
                     label='Resultado'
                     sortKey='net'
                     activeKey={sortKey}
@@ -354,7 +426,7 @@ export function PlayersDirectoryTab() {
               {loading &&
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className='border-b border-zinc-800/50'>
-                    <td colSpan={8} className='px-4 py-4'>
+                    <td colSpan={9} className='px-4 py-4'>
                       <div className='flex items-center gap-3'>
                         <div className='h-10 w-10 animate-pulse rounded-full bg-zinc-800' />
                         <div className='flex-1 space-y-2'>
@@ -390,11 +462,21 @@ export function PlayersDirectoryTab() {
                           <p className='truncate font-medium text-zinc-100 group-hover:text-emerald-200'>
                             {entry.profile.displayName}
                           </p>
-                          {entry.rankingRank != null && (
-                            <p className='text-[10px] text-zinc-600'>
-                              Ranking #{entry.rankingRank} · {entry.rankingPoints} pts
-                            </p>
-                          )}
+                          <div className='mt-0.5 flex flex-wrap gap-1'>
+                            {entry.profile.tags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className='rounded border border-zinc-700/80 bg-zinc-900/80 px-1.5 py-px text-[10px] text-zinc-400'
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {entry.rankingRank != null && (
+                              <span className='text-[10px] text-zinc-600'>
+                                #{entry.rankingRank} · {entry.rankingPoints} pts
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     </td>
@@ -410,7 +492,21 @@ export function PlayersDirectoryTab() {
                       {entry.sessionsPlayed}
                     </td>
                     <td className='hidden px-4 py-3 text-xs text-zinc-400 sm:table-cell'>
-                      {entry.lastPlayedDate ? prettyDate(entry.lastPlayedDate) : '—'}
+                      {entry.lastPlayedDate ? (
+                        <span>
+                          {prettyDate(entry.lastPlayedDate)}
+                          {entry.daysSinceLastPlay != null && (
+                            <span className='mt-0.5 block text-[10px] text-zinc-600'>
+                              há {entry.daysSinceLastPlay}d
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className='px-4 py-3 text-right tabular-nums text-sky-300/90'>
+                      {currency(entry.totalRakeGenerated)}
                     </td>
                     <td className='px-4 py-3 text-right'>
                       <span
@@ -441,7 +537,7 @@ export function PlayersDirectoryTab() {
 
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className='px-4 py-16 text-center'>
+                  <td colSpan={9} className='px-4 py-16 text-center'>
                     <Users className='mx-auto h-10 w-10 text-zinc-700' />
                     <p className='mt-3 font-medium text-zinc-400'>Nenhum jogador encontrado</p>
                     <p className='mt-1 text-sm text-zinc-600'>

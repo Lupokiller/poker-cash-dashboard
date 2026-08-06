@@ -484,7 +484,18 @@ export function PlayerRegistrationTab({
   };
 
   const updatePlayerInList = (updated: RegisteredPlayer) => {
-    setPlayers((current) => current.map((p) => (p.id === updated.id ? updated : p)));
+    setPlayers((current) => {
+      const key = updated.name.trim().toLowerCase();
+      const matched = current.some(
+        (p) => p.date === updated.date && p.name.trim().toLowerCase() === key
+      );
+      if (!matched) {
+        return current.map((p) => (p.id === updated.id ? updated : p));
+      }
+      return current.map((p) =>
+        p.date === updated.date && p.name.trim().toLowerCase() === key ? updated : p
+      );
+    });
   };
 
   const mergeSavedPlayer = (saved: RegisteredPlayer) => {

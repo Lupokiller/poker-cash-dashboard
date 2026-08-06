@@ -280,8 +280,45 @@ export async function ensureRegisteredPlayersUniqueNameDate(): Promise<void> {
 export async function ensureRegisteredPlayerSchema(): Promise<void> {
   await ensurePaymentMethodColumns();
   await ensureBuyInLogsColumn();
+  await ensureSettlementMethodColumn();
   await ensurePlayerProfilesTable();
   await ensureRegisteredPlayersUniqueNameDate();
+}
+
+let settlementMethodColumnReady: Promise<void> | null = null;
+
+/** Garante settlement_method (acerto Pix/Dinheiro após cash-out). */
+export async function ensureSettlementMethodColumn(): Promise<void> {
+  if (!settlementMethodColumnReady) {
+    settlementMethodColumnReady = (async () => {
+      const pool = getDbPool();
+      await pool.query(
+        `ALTER TABLE registered_players
+         ADD COLUMN IF NOT EXISTS settlement_method TEXT`
+      );
+      await pool.query(
+        `ALTER TABLE registered_players DROP CONSTRAINT IF EXISTS registered_players_settlement_method_check`
+      );
+      await pool
+        .query(
+          `ALTER TABLE registered_players
+           ADD CONSTRAINT registered_players_settlement_method_check
+           CHECK (settlement_method IS NULL OR settlement_method IN ('pix', 'dinheiro'))`
+        )
+        .catch((error: { code?: string }) => {
+          if (error.code !== '42710') {
+            throw error;
+          }
+        });
+      await pool.query(
+        `ALTER TABLE registered_players ALTER COLUMN payment_method SET DEFAULT 'pix'`
+      );
+    })().catch((error) => {
+      settlementMethodColumnReady = null;
+      throw error;
+    });
+  }
+  return settlementMethodColumnReady;
 }
 
 let playerProfilesTableReady: Promise<void> | null = null;
@@ -315,6 +352,28 @@ export async function ensurePlayerProfilesTable(): Promise<void> {
       await pool.query(
         `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS first_seen_at DATE`
       );
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'`
+      );
+      await pool.query(
+        `ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT ''`
+      );
+      await pool.query(`
+        ALTER TABLE player_profiles DROP CONSTRAINT IF EXISTS player_profiles_origin_check
+      `);
+      await pool
+        .query(
+          `
+        ALTER TABLE player_profiles
+          ADD CONSTRAINT player_profiles_origin_check
+          CHECK (origin IN ('', 'indicacao', 'instagram', 'amigo', 'whatsapp', 'outro'))
+      `
+        )
+        .catch((error: { code?: string }) => {
+          if (error.code !== '42710') {
+            throw error;
+          }
+        });
       await pool.query(`
         ALTER TABLE player_profiles DROP CONSTRAINT IF EXISTS player_profiles_club_status_check
       `);

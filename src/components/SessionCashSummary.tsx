@@ -126,9 +126,6 @@ function CashBreakdownCard({
               </li>
             ))}
           </ul>
-          <p className='mt-2 border-t border-zinc-800 pt-2 text-[10px] text-zinc-600'>
-            {breakdown.map((e) => `${e.playerName}: ${currency(e.amount)}`).join(' · ')}
-          </p>
         </div>
       )}
     </div>
@@ -146,7 +143,6 @@ export function SessionCashSummary({
   totalDinheiro: number;
   totalFiado: number;
   label?: string;
-  /** Jogadores da sessão para detalhamento por meio de pagamento. */
   players?: RegisteredPlayer[];
 }) {
   return (
@@ -161,10 +157,16 @@ export function SessionCashSummary({
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
         <CashBreakdownCard method='pix' total={totalPix} players={players} />
         <CashBreakdownCard method='dinheiro' total={totalDinheiro} players={players} />
-        <CashBreakdownCard method='fiado' total={totalFiado} players={players} className='sm:col-span-2 lg:col-span-1' />
+        <CashBreakdownCard
+          method='fiado'
+          total={totalFiado}
+          players={players}
+          className='sm:col-span-2 lg:col-span-1'
+        />
       </div>
       <p className='mt-4 text-xs text-zinc-600'>
-        Valores somados a partir dos buy-ins registrados. Re-finalize a sessão para atualizar o histórico na dashboard.
+        Valores somados a partir dos buy-ins registrados. No cash-out/payout você pode quitar com Pix
+        ou Dinheiro.
       </p>
     </section>
   );

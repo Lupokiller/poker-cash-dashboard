@@ -34,6 +34,8 @@ export async function GET(request: Request) {
           phone: '',
           notes: '',
           clubStatus: 'ativo' as ClubPlayerStatus,
+          tags: [],
+          origin: '',
           firstSeenAt: null,
           updatedAt: null,
         }

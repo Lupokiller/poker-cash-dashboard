@@ -10,7 +10,7 @@ const FILTERS: Array<{ id: PaymentMethodFilter; label: string; activeClass: stri
   { id: 'all', label: 'Todos', activeClass: 'border-zinc-500/45 bg-zinc-500/15 text-zinc-100' },
   { id: 'pix', label: 'Pix', activeClass: 'border-sky-500/45 bg-sky-500/15 text-sky-100' },
   { id: 'dinheiro', label: 'Dinheiro', activeClass: 'border-emerald-500/45 bg-emerald-500/15 text-emerald-100' },
-  { id: 'fiado', label: 'Fiado', activeClass: 'border-violet-500/45 bg-violet-500/15 text-violet-100' },
+  { id: 'fiado', label: 'Crédito', activeClass: 'border-violet-500/45 bg-violet-500/15 text-violet-100' },
 ];
 
 export function countPlayersByPaymentFilter(

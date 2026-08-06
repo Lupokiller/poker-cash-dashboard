@@ -1,6 +1,7 @@
 import { resolveBuyInLogs, cashTotalsFromBuyInLogs } from './buyInLogsModel';
-import { PaymentMethod, RegisteredPlayer, Session } from './types';
+import { PaymentMethod, RegisteredPlayer, Session, SettlementMethod } from './types';
 
+/** Totais por meio de pagamento dos buy-ins (não altera jogos antigos). */
 export function sumRegisteredPlayerCashTotals(players: RegisteredPlayer[]): {
   totalPix: number;
   totalDinheiro: number;
@@ -48,4 +49,10 @@ export function normalizePaymentMethod(value: unknown): PaymentMethod {
   if (value === 'dinheiro') return 'dinheiro';
   if (value === 'fiado') return 'fiado';
   return 'pix';
+}
+
+export function normalizeSettlementMethod(value: unknown): SettlementMethod | null {
+  if (value === 'dinheiro') return 'dinheiro';
+  if (value === 'pix') return 'pix';
+  return null;
 }

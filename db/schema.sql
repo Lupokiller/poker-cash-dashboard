@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS registered_players (
   notes TEXT NOT NULL DEFAULT '',
   payment_method TEXT NOT NULL DEFAULT 'pix' CHECK (payment_method IN ('pix', 'dinheiro', 'fiado')),
   buy_in_logs JSONB NOT NULL DEFAULT '[]'::jsonb,
+  settlement_method TEXT CHECK (settlement_method IS NULL OR settlement_method IN ('pix', 'dinheiro')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -70,6 +71,8 @@ CREATE TABLE IF NOT EXISTS player_profiles (
   phone TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   club_status TEXT NOT NULL DEFAULT 'ativo' CHECK (club_status IN ('ativo', 'vip', 'inativo', 'bloqueado')),
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  origin TEXT NOT NULL DEFAULT '' CHECK (origin IN ('', 'indicacao', 'instagram', 'amigo', 'whatsapp', 'outro')),
   first_seen_at DATE,
   fiado_limit NUMERIC(12, 2) NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

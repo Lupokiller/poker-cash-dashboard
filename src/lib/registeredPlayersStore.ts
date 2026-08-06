@@ -5,11 +5,17 @@ import {
   parseBuyInLogs,
   sumBuyInLogs,
 } from './buyInLogsModel';
-import { normalizePaymentMethod } from './cashTotalsModel';
+import { normalizePaymentMethod, normalizeSettlementMethod } from './cashTotalsModel';
 import { aggregateRegisteredPlayersForSession, AggregatedSessionPlayer } from './playerSessionModel';
 import { getPlayerProfileByName, upsertClubPlayerProfile } from './playerProfilesStore';
 import { ensureRegisteredPlayerSchema } from './schemaMigrations';
-import { BuyInLogEntry, PaymentMethod, PaymentStatus, RegisteredPlayer } from './types';
+import {
+  BuyInLogEntry,
+  PaymentMethod,
+  PaymentStatus,
+  RegisteredPlayer,
+  SettlementMethod,
+} from './types';
 
 interface RegisteredPlayerRow {
   id: string;
@@ -23,10 +29,11 @@ interface RegisteredPlayerRow {
   notes: string;
   payment_method: string | null;
   buy_in_logs: unknown;
+  settlement_method: string | null;
   created_at: string;
 }
 
-const SELECT_FIELDS = `id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, buy_in_logs, created_at`;
+const SELECT_FIELDS = `id, name, date::text AS date, buy_in, cash_out, net, payment_status, phone, notes, payment_method, buy_in_logs, settlement_method, created_at`;
 
 function mapRow(row: RegisteredPlayerRow): RegisteredPlayer {
   const buyInLogs = parseBuyInLogs(row.buy_in_logs);
@@ -42,6 +49,7 @@ function mapRow(row: RegisteredPlayerRow): RegisteredPlayer {
     notes: row.notes,
     paymentMethod: normalizePaymentMethod(row.payment_method),
     buyInLogs,
+    settlementMethod: normalizeSettlementMethod(row.settlement_method),
     createdAt: row.created_at,
   };
 }
@@ -117,8 +125,8 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
 
     if (existing.rows.length === 0) {
       const inserted = await client.query<RegisteredPlayerRow>(
-        `INSERT INTO registered_players (name, date, buy_in, cash_out, payment_status, phone, notes, payment_method, buy_in_logs)
-         VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9::jsonb)
+        `INSERT INTO registered_players (name, date, buy_in, cash_out, payment_status, phone, notes, payment_method, buy_in_logs, settlement_method)
+         VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9::jsonb, NULL)
          RETURNING ${SELECT_FIELDS}`,
         [
           name,
@@ -148,7 +156,8 @@ export async function registerOrAddBuyIn(input: RegisterBuyInInput): Promise<Reg
              payment_status = 'a receber',
              payment_method = $3,
              phone = $4,
-             buy_in_logs = $5::jsonb
+             buy_in_logs = $5::jsonb,
+             settlement_method = NULL
          WHERE id = $1
          RETURNING ${SELECT_FIELDS}`,
         [primary.id, totalBuyIn, paymentMethod, mergedPhone, JSON.stringify(logs)]
@@ -191,11 +200,15 @@ export async function createRegisteredPlayer(player: Omit<RegisteredPlayer, 'id'
 export async function updateRegisteredPlayerCashAndStatus(
   id: string,
   cashOut: number,
-  paymentStatus: RegisteredPlayer['paymentStatus']
+  paymentStatus: RegisteredPlayer['paymentStatus'],
+  settlementMethod: SettlementMethod | null = null
 ) {
   await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
   const client = await pool.connect();
+
+  const resolvedSettlement =
+    paymentStatus === 'quitado' ? normalizeSettlementMethod(settlementMethod) : null;
 
   try {
     await client.query('BEGIN');
@@ -228,10 +241,11 @@ export async function updateRegisteredPlayerCashAndStatus(
        SET buy_in = $2,
            cash_out = $3,
            payment_status = $4,
-           buy_in_logs = $5::jsonb
+           buy_in_logs = $5::jsonb,
+           settlement_method = $6
        WHERE id = $1
        RETURNING ${SELECT_FIELDS}`,
-      [primary.id, totalBuyIn, cashOut, paymentStatus, JSON.stringify(logs)]
+      [primary.id, totalBuyIn, cashOut, paymentStatus, JSON.stringify(logs), resolvedSettlement]
     );
 
     const duplicateIds = siblings.rows.filter((row) => row.id !== primary.id).map((row) => row.id);
@@ -252,11 +266,13 @@ export async function updateRegisteredPlayerCashAndStatus(
 export async function finalizePlayerPayout(
   name: string,
   sessionDate: string,
-  cashOut: number
+  cashOut: number,
+  settlementMethod: SettlementMethod | null = null
 ): Promise<AggregatedSessionPlayer | null> {
   await ensureRegisteredPlayerSchema();
   const pool = getDbPool();
   const client = await pool.connect();
+  const resolvedSettlement = normalizeSettlementMethod(settlementMethod);
 
   try {
     await client.query('BEGIN');
@@ -284,9 +300,10 @@ export async function finalizePlayerPayout(
        SET buy_in = $2,
            cash_out = $3,
            payment_status = 'quitado',
-           buy_in_logs = $4::jsonb
+           buy_in_logs = $4::jsonb,
+           settlement_method = $5
        WHERE id = $1`,
-      [primary.id, totalBuyIn, cashOut, JSON.stringify(logs)]
+      [primary.id, totalBuyIn, cashOut, JSON.stringify(logs), resolvedSettlement]
     );
 
     const duplicateIds = found.rows.slice(1).map((row) => row.id);

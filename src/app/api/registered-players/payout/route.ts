@@ -6,9 +6,14 @@ import { requireSession } from '@/lib/requireAuth';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  let body: { name?: unknown; date?: unknown; cashOut?: unknown };
+  let body: { name?: unknown; date?: unknown; cashOut?: unknown; settlementMethod?: unknown };
   try {
-    body = (await request.json()) as { name?: unknown; date?: unknown; cashOut?: unknown };
+    body = (await request.json()) as {
+      name?: unknown;
+      date?: unknown;
+      cashOut?: unknown;
+      settlementMethod?: unknown;
+    };
   } catch {
     return NextResponse.json({ message: 'JSON invalido.' }, { status: 400 });
   }
@@ -16,6 +21,10 @@ export async function POST(request: Request) {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const date = typeof body.date === 'string' ? body.date.trim() : '';
   const cashOut = Number(body.cashOut ?? 0);
+  const settlementMethod =
+    body.settlementMethod === 'pix' || body.settlementMethod === 'dinheiro'
+      ? body.settlementMethod
+      : null;
 
   if (!name || !date) {
     return NextResponse.json({ message: 'Nome e data da sessao sao obrigatorios.' }, { status: 400 });
@@ -26,7 +35,7 @@ export async function POST(request: Request) {
 
   try {
     await requireSession();
-    const updated = await finalizePlayerPayout(name, date, cashOut);
+    const updated = await finalizePlayerPayout(name, date, cashOut, settlementMethod);
     if (!updated) {
       return NextResponse.json({ message: 'Jogador nao encontrado nesta sessao.' }, { status: 404 });
     }
