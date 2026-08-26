@@ -18,11 +18,15 @@ import { PlayerDirectoryAvatar } from '@/components/PlayerDirectoryAvatar';
 import { HistoricalPlayerBadges } from '@/components/HistoricalPlayerBadges';
 import { PlayerStatusBadge } from '@/components/PlayerStatusBadge';
 import { currency, prettyDate } from '@/lib/data';
-import { PlayerDirectoryEntry, PlayerDisplayStatus } from '@/lib/playerDirectoryModel';
+import {
+  formatSessionsPerMonth,
+  PlayerDirectoryEntry,
+  PlayerDisplayStatus,
+} from '@/lib/playerDirectoryModel';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
 type StatusFilter = 'all' | PlayerDisplayStatus;
-type SortKey = 'name' | 'sessions' | 'lastPlayed' | 'net' | 'ltv';
+type SortKey = 'name' | 'sessions' | 'frequency' | 'lastPlayed' | 'net' | 'ltv';
 type SortDir = 'asc' | 'desc';
 
 const STATUS_FILTERS: { id: StatusFilter; label: string; activeClass: string }[] = [
@@ -196,6 +200,9 @@ export function PlayersDirectoryTab() {
       }
       if (sortKey === 'sessions') {
         return dir * (a.sessionsPlayed - b.sessionsPlayed);
+      }
+      if (sortKey === 'frequency') {
+        return dir * (a.sessionsPerMonth - b.sessionsPerMonth);
       }
       if (sortKey === 'net') {
         return dir * (a.totalNet - b.totalNet);
@@ -389,7 +396,17 @@ export function PlayersDirectoryTab() {
                     align='right'
                   />
                 </th>
-                <th className='hidden px-4 py-3 text-left sm:table-cell'>
+                <th className='hidden px-4 py-3 text-right sm:table-cell'>
+                  <SortHeader
+                    label='Frequência'
+                    sortKey='frequency'
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    align='right'
+                  />
+                </th>
+                <th className='hidden px-4 py-3 text-left md:table-cell'>
                   <SortHeader
                     label='Última sessão'
                     sortKey='lastPlayed'
@@ -426,7 +443,7 @@ export function PlayersDirectoryTab() {
               {loading &&
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className='border-b border-zinc-800/50'>
-                    <td colSpan={9} className='px-4 py-4'>
+                    <td colSpan={10} className='px-4 py-4'>
                       <div className='flex items-center gap-3'>
                         <div className='h-10 w-10 animate-pulse rounded-full bg-zinc-800' />
                         <div className='flex-1 space-y-2'>
@@ -491,7 +508,19 @@ export function PlayersDirectoryTab() {
                     <td className='px-4 py-3 text-right tabular-nums text-zinc-300'>
                       {entry.sessionsPlayed}
                     </td>
-                    <td className='hidden px-4 py-3 text-xs text-zinc-400 sm:table-cell'>
+                    <td className='hidden px-4 py-3 text-right sm:table-cell'>
+                      {entry.sessionsPlayed > 0 ? (
+                        <span className='tabular-nums text-zinc-300'>
+                          {formatSessionsPerMonth(entry.sessionsPerMonth)}
+                          <span className='mt-0.5 block text-[10px] text-zinc-600'>
+                            {entry.sessionsLast30Days} nos últimos 30d
+                          </span>
+                        </span>
+                      ) : (
+                        <span className='text-zinc-600'>—</span>
+                      )}
+                    </td>
+                    <td className='hidden px-4 py-3 text-xs text-zinc-400 md:table-cell'>
                       {entry.lastPlayedDate ? (
                         <span>
                           {prettyDate(entry.lastPlayedDate)}
@@ -537,7 +566,7 @@ export function PlayersDirectoryTab() {
 
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className='px-4 py-16 text-center'>
+                  <td colSpan={10} className='px-4 py-16 text-center'>
                     <Users className='mx-auto h-10 w-10 text-zinc-700' />
                     <p className='mt-3 font-medium text-zinc-400'>Nenhum jogador encontrado</p>
                     <p className='mt-1 text-sm text-zinc-600'>

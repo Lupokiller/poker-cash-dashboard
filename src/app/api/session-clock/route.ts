@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { requireAdmin } from '@/lib/requireAuth';
+import { requireTableManager } from '@/lib/requireAuth';
 import { endTable, readSessionClock, startTable } from '@/lib/sessionClockStore';
 import { todayLocalISODate } from '@/lib/time';
 
@@ -12,7 +12,7 @@ function authErrorResponse(error: unknown) {
     return NextResponse.json({ message: 'Nao autorizado.' }, { status: 401 });
   }
   if (msg === 'FORBIDDEN') {
-    return NextResponse.json({ message: 'Apenas administradores podem controlar a mesa.' }, { status: 403 });
+    return NextResponse.json({ message: 'Apenas gerente ou administrador podem controlar a mesa.' }, { status: 403 });
   }
   return null;
 }
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await requireAdmin();
+    await requireTableManager();
     const clock = action === 'start' ? await startTable(date) : await endTable(date);
     return NextResponse.json(clock);
   } catch (error) {

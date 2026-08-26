@@ -27,7 +27,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Usuario ou senha incorretos.' }, { status: 401 });
     }
 
-    const token = await createSessionToken({ id: user.id, name: user.name, role: user.role });
+    const token = await createSessionToken({
+      id: user.id,
+      name: user.name,
+      login: user.login,
+      role: user.role,
+    });
     const cookieStore = await cookies();
     cookieStore.set(AUTH_COOKIE, token, {
       httpOnly: true,
@@ -39,7 +44,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      user: { id: user.id, name: user.name, role: user.role, login: user.login },
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        login: user.login,
+        isBoss: user.isBoss,
+      },
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : '';

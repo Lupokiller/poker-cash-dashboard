@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
-import { requireAdmin } from '@/lib/requireAuth';
+import { requireTableManager } from '@/lib/requireAuth';
 import { updateSessionStaffCost } from '@/lib/sessionsStore';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ function authErrorResponse(error: unknown) {
     return NextResponse.json({ message: 'Nao autorizado.' }, { status: 401 });
   }
   if (msg === 'FORBIDDEN') {
-    return NextResponse.json({ message: 'Apenas administradores podem alterar custos de staff.' }, { status: 403 });
+    return NextResponse.json({ message: 'Apenas gerente ou administrador podem alterar custos de staff.' }, { status: 403 });
   }
   return null;
 }
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 
   try {
-    await requireAdmin();
+    await requireTableManager();
     const updated = await updateSessionStaffCost(id, staffCost);
     if (!updated) {
       return NextResponse.json({ message: 'Sessao nao encontrada.' }, { status: 404 });

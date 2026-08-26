@@ -90,8 +90,14 @@ export interface PlayerDirectoryEntry {
   profile: ClubPlayerProfile;
   sessionsPlayed: number;
   lastPlayedDate: string | null;
+  /** Primeira sessão finalizada (null se nunca jogou). */
+  firstPlayedDate: string | null;
   /** Dias desde a última sessão (null se nunca jogou). */
   daysSinceLastPlay: number | null;
+  /** Sessões nos últimos 30 dias. */
+  sessionsLast30Days: number;
+  /** Média de sessões por mês desde a primeira (até hoje). */
+  sessionsPerMonth: number;
   totalNet: number;
   totalBuyIn: number;
   avgBuyIn: number;
@@ -104,6 +110,12 @@ export interface PlayerDirectoryEntry {
   historicalBadges: HistoricalGamificationBadge[];
   rankingPoints: number;
   rankingRank: number | null;
+}
+
+/** Ex.: "2,4/mês". */
+export function formatSessionsPerMonth(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '—';
+  return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 0 })}/mês`;
 }
 
 export interface PlayerDetail extends PlayerDirectoryEntry {
@@ -128,6 +140,26 @@ function daysSince(dateIso: string, today = new Date()): number {
   const d = new Date(`${dateIso}T12:00:00`);
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
   return Math.floor((t.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+const DAYS_PER_MONTH = 30.437;
+
+function computePlayFrequency(slices: PlayerSessionSlice[], today = new Date()) {
+  if (slices.length === 0) {
+    return {
+      firstPlayedDate: null as string | null,
+      sessionsLast30Days: 0,
+      sessionsPerMonth: 0,
+    };
+  }
+
+  const firstPlayedDate = slices[0].date;
+  const sessionsLast30Days = slices.filter((s) => daysSince(s.date, today) <= 30).length;
+  const spanDays = Math.max(daysSince(firstPlayedDate, today), 1);
+  const monthsActive = Math.max(spanDays / DAYS_PER_MONTH, 1);
+  const sessionsPerMonth = slices.length / monthsActive;
+
+  return { firstPlayedDate, sessionsLast30Days, sessionsPerMonth };
 }
 
 export function resolvePlayerActivity(lastPlayedDate: string | null): PlayerActivityBadge {
@@ -214,6 +246,7 @@ function buildDirectoryEntry(
   const slices = collectPlayerSessions(sessions, profile.nameKey);
   const sessionsPlayed = slices.length;
   const lastPlayedDate = sessionsPlayed > 0 ? slices[slices.length - 1].date : null;
+  const frequency = computePlayFrequency(slices);
   const totalNet = slices.reduce((acc, s) => acc + s.net, 0);
   const totalBuyIn = slices.reduce((acc, s) => acc + s.buyIn, 0);
   const totalRakeGenerated = slices.reduce((acc, s) => acc + s.rakeGenerated, 0);
@@ -225,7 +258,10 @@ function buildDirectoryEntry(
     profile,
     sessionsPlayed,
     lastPlayedDate,
+    firstPlayedDate: frequency.firstPlayedDate,
     daysSinceLastPlay: lastPlayedDate ? daysSince(lastPlayedDate) : null,
+    sessionsLast30Days: frequency.sessionsLast30Days,
+    sessionsPerMonth: frequency.sessionsPerMonth,
     totalNet,
     totalBuyIn,
     avgBuyIn: sessionsPlayed > 0 ? totalBuyIn / sessionsPlayed : 0,

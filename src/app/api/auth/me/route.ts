@@ -13,5 +13,7 @@ export async function GET() {
     id: session.sub,
     name: session.name,
     role: session.role,
+    login: session.login,
+    isBoss: session.isBoss,
   });
 }

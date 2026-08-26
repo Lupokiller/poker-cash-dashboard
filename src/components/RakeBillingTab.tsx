@@ -294,7 +294,7 @@ export function RakeBillingTab({
         <p className='mb-4 text-xs text-zinc-500'>
           {canEditStaffCost
             ? 'Digite o valor pago ao staff na coluna "Custo Staff" e saia do campo para salvar.'
-            : 'Somente administradores podem editar o custo de staff.'}
+            : 'Somente gerente ou administrador podem editar o custo de staff.'}
         </p>
 
         <div className='overflow-x-auto'>

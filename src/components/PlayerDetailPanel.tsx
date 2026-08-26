@@ -19,7 +19,7 @@ import { PlayerDirectoryAvatar } from '@/components/PlayerDirectoryAvatar';
 import { PlayerGamificationBadges } from '@/components/PlayerGamificationBadge';
 import { PlayerStatusBadge } from '@/components/PlayerStatusBadge';
 import { currency, prettyDate } from '@/lib/data';
-import { PlayerDetail } from '@/lib/playerDirectoryModel';
+import { formatSessionsPerMonth, PlayerDetail } from '@/lib/playerDirectoryModel';
 import { ClubPlayerStatus, PLAYER_ORIGIN_OPTIONS, PlayerOrigin } from '@/lib/types';
 import { formatBrazilPhoneInput } from '@/lib/phoneMask';
 
@@ -284,6 +284,22 @@ export function PlayerDetailPanel({
                     <SectionTitle icon={BarChart3} title='Desempenho' subtitle='Totais em sessões finalizadas' />
                     <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-3'>
                       <StatCard label='Sessões' value={String(detail.sessionsPlayed)} />
+                      <StatCard
+                        label='Frequência'
+                        value={
+                          detail.sessionsPlayed > 0
+                            ? formatSessionsPerMonth(detail.sessionsPerMonth)
+                            : '—'
+                        }
+                      />
+                      <StatCard
+                        label='Últimos 30 dias'
+                        value={
+                          detail.sessionsPlayed > 0
+                            ? `${detail.sessionsLast30Days} ${detail.sessionsLast30Days === 1 ? 'sessão' : 'sessões'}`
+                            : '—'
+                        }
+                      />
                       <StatCard label='LTV clube' value={currency(detail.totalRakeGenerated)} />
                       <StatCard label='Buy-in total' value={currency(detail.totalBuyIn)} />
                       <StatCard
@@ -300,6 +316,10 @@ export function PlayerDetailPanel({
                         label='% lucrativas'
                         value={`${detail.profitableSessionRate.toFixed(0)}%`}
                         tone='neutral'
+                      />
+                      <StatCard
+                        label='Buy-in médio'
+                        value={detail.sessionsPlayed > 0 ? currency(detail.avgBuyIn) : '—'}
                       />
                     </div>
                   </section>

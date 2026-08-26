@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { databaseErrorResponse } from '@/lib/databaseErrorResponse';
 import { requireAdmin } from '@/lib/requireAuth';
-import { AppUserRole, createAppUser, listAppUsers } from '@/lib/usersStore';
+import { createAppUser, listAppUsers } from '@/lib/usersStore';
+import { parseAppUserRole } from '@/lib/userRoles';
 
 export const runtime = 'nodejs';
 
@@ -29,9 +30,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: { name?: string; login?: string; password?: string; role?: AppUserRole };
+  let body: { name?: string; login?: string; password?: string; role?: string };
   try {
-    body = (await request.json()) as { name?: string; login?: string; password?: string; role?: AppUserRole };
+    body = (await request.json()) as { name?: string; login?: string; password?: string; role?: string };
   } catch {
     return NextResponse.json({ message: 'JSON invalido.' }, { status: 400 });
   }
@@ -39,7 +40,13 @@ export async function POST(request: Request) {
   try {
     await requireAdmin();
 
-    const requestedRole = body.role === 'admin' ? 'admin' : 'user';
+    const requestedRole = parseAppUserRole(body.role);
+    if (!requestedRole) {
+      return NextResponse.json(
+        { message: 'Cargo invalido. Use administrador, gerente ou floor.' },
+        { status: 400 }
+      );
+    }
 
     const created = await createAppUser({
       name: body.name?.trim() ?? '',
@@ -54,7 +61,13 @@ export async function POST(request: Request) {
     if (authRes) return authRes;
 
     const msg = error instanceof Error ? error.message : 'Nao foi possivel criar usuario.';
-    if (msg.includes('obrigatorios') || msg.includes('login ja') || msg.includes('senha')) {
+    if (
+      msg.includes('obrigatorios') ||
+      msg.includes('login ja') ||
+      msg.includes('senha') ||
+      msg.includes('reservado') ||
+      msg.includes('Cargo invalido')
+    ) {
       return NextResponse.json({ message: msg }, { status: 400 });
     }
 

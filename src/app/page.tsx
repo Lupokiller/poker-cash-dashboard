@@ -28,6 +28,8 @@ import {
   computeChipsInPlayFromSessionPlayers,
 } from '@/lib/chipsInPlayModel';
 import { currentLocalYearMonth, todayLocalISODate } from '@/lib/time';
+import type { AppUserRole } from '@/lib/userRoles';
+import { canControlTable, canEditStaffCost, canManageUsers } from '@/lib/userRoles';
 
 type PeriodMode = 'session' | 'month' | 'total';
 type AppTab = 'dashboard' | 'cadastro' | 'jogadores' | 'ranking' | 'faturamento' | 'usuarios';
@@ -35,7 +37,9 @@ type AppTab = 'dashboard' | 'cadastro' | 'jogadores' | 'ranking' | 'faturamento'
 interface CurrentUser {
   id: string;
   name: string;
-  role: 'admin' | 'user';
+  role: AppUserRole;
+  login?: string;
+  isBoss?: boolean;
 }
 
 export default function Home() {
@@ -367,7 +371,7 @@ export default function Home() {
           >
             Faturamento / Rake
           </button>
-          {currentUser?.role === 'admin' && (
+          {currentUser && canManageUsers(currentUser.role, currentUser.login) && (
             <button
               type='button'
               onClick={() => setActiveTab('usuarios')}
@@ -508,7 +512,10 @@ export default function Home() {
             </p>
           )}
 
-          {periodMode === 'session' && sessionDateForAudit && currentUser?.role === 'admin' && (
+          {periodMode === 'session' &&
+            sessionDateForAudit &&
+            currentUser &&
+            canControlTable(currentUser.role, currentUser.login) && (
             <TableClockPanel
               sessionDate={sessionDateForAudit}
               rakeBruto={dashboardSessionRake}
@@ -624,7 +631,9 @@ export default function Home() {
         </>
       ) : activeTab === 'cadastro' ? (
         <PlayerRegistrationTab
-          canControlTable={currentUser?.role === 'admin'}
+          canControlTable={
+            !!currentUser && canControlTable(currentUser.role, currentUser.login)
+          }
           onSessionsChanged={() => {
             void loadSessions();
             void loadRegisteredPlayers();
@@ -640,8 +649,12 @@ export default function Home() {
           registeredPlayers={registeredPlayers}
           loading={sessionsLoading}
           error={sessionsError}
-          canEditStaffCost={currentUser?.role === 'admin'}
-          canControlTable={currentUser?.role === 'admin'}
+          canEditStaffCost={
+            !!currentUser && canEditStaffCost(currentUser.role, currentUser.login)
+          }
+          canControlTable={
+            !!currentUser && canControlTable(currentUser.role, currentUser.login)
+          }
           onRefresh={() => {
             void loadSessions();
             void loadRegisteredPlayers();

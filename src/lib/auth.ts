@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import type { NextRequest } from 'next/server';
-import type { AppUserRole } from './usersStore';
+import { isBossLogin, parseAppUserRole, type AppUserRole } from './userRoles';
 
 export const AUTH_COOKIE = 'poker_auth';
 export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7;
@@ -8,7 +8,9 @@ export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7;
 export interface SessionPayload {
   sub: string;
   name: string;
+  login: string;
   role: AppUserRole;
+  isBoss: boolean;
 }
 
 function getSecretKey() {
@@ -19,8 +21,19 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSessionToken(user: { id: string; name: string; role: AppUserRole }): Promise<string> {
-  return new SignJWT({ sub: user.id, name: user.name, role: user.role })
+export async function createSessionToken(user: {
+  id: string;
+  name: string;
+  login: string;
+  role: AppUserRole;
+}): Promise<string> {
+  return new SignJWT({
+    sub: user.id,
+    name: user.name,
+    login: user.login,
+    role: user.role,
+    isBoss: isBossLogin(user.login),
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SEC}s`)
@@ -32,17 +45,24 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     const { payload } = await jwtVerify(token, getSecretKey());
     const sub = payload.sub;
     const name = payload.name;
-    const role = payload.role;
+    const login = typeof payload.login === 'string' ? payload.login : '';
+    const role = parseAppUserRole(payload.role);
     if (typeof sub !== 'string' || !sub) {
       return null;
     }
     if (typeof name !== 'string' || !name) {
       return null;
     }
-    if (role !== 'admin' && role !== 'user') {
+    if (!role) {
       return null;
     }
-    return { sub, name, role };
+    return {
+      sub,
+      name,
+      login,
+      role,
+      isBoss: Boolean(payload.isBoss) || isBossLogin(login),
+    };
   } catch {
     return null;
   }
